@@ -41,5 +41,5 @@ build_script:
   - set MRUBY_CONFIG=appveyor_config.rb
 #  - ruby -r 'rake/cpu_counter' -e 'puts "CPU=#{Rake::CpuCounter.count}"'
 #  - ruby .\minirake -j4 test
-  - rake test
+  - rake -j1 test
 #  - rake -E $stdout.sync=true test
