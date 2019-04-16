@@ -1,28 +1,15 @@
 #!/usr/bin/env ruby
 
-$stdout.sync=true
-
-#
-# === 動機
-#
-# Rake は起動が遅い (Ruby 2.5 から特に感じる) ので最低限の機能のみを提供する
-# ものを利用したい。将来的には mruby オリジナルの MiniRake を改修したい。
-#
-# === オリジナルからの主な変更点
-#
-# - ヘルプ系で desc 文字列を表示
-# - --prereqs(-P) を追加
-# - --tasks(-T) で依存タスクを非表示
-# - rule タスクの deps 側で %X などが機能しない問題を修正 (だだし rule の再
-#   帰? には未対応)
-# - 簡易な namespace サポートを追加
-# - DSL で FileUtils のコマンドを使えるようにした
-# - mrbgem の pull 機能を削除
-# - いくつか Rake との互換性を高めた
-#
+# Original is https://github.com/jimweirich/rake/
+# Copyright (c) 2003 Jim Weirich
+# License: MIT-LICENSE
 
 require 'getoptlong'
-autoload :FileUtils, 'fileutils'
+require 'fileutils'
+
+$rake_fiber_table = {}
+$rake_jobs = 1
+$rake_failed = []
 
 class String
   def ext(newext='')
@@ -71,23 +58,104 @@ class String
   end
 end
 
-$namespaces = []
-$verbose = false  # オリジナル minirake との互換のために false の設定が必要
 module MiniRake
-  class << self
-    attr_reader :app
-
-    def run
-      @app = MiniRake::App.new
-      @app.run
-    end
-  end
-
   class Task
     TASKS = Hash.new
     RULES = Array.new
 
+    # List of prerequisites for a task.
+    attr_reader :prerequisites
+
+    # Source dependency for rule synthesized tasks.  Nil if task was not
+    # sythesized from a rule.
+    attr_accessor :source
+
+    # Create a task named +task_name+ with no actions or prerequisites..
+    # use +enhance+ to add actions and prerequisites.
+    def initialize(task_name)
+      @name = task_name
+      @prerequisites = []
+      @actions = []
+    end
+
+    # Enhance a task with prerequisites or actions.  Returns self.
+    def enhance(deps=nil, &block)
+      @prerequisites |= deps if deps
+      @actions << block if block_given?
+      self
+    end
+
+    # Name of the task.
+    def name
+      @name.to_s
+    end
+
+    def done?; @done end
+    def running?; @running end
+
+    # Invoke the task if it is needed. Prerequisites are invoked first.
+    def invoke
+      puts "Invoke #{name} (already=[#{@already_invoked}], needed=[#{needed?}])" if $trace
+      return if @already_invoked
+      prerequisites = @prerequisites.collect{ |n| n.is_a?(Proc) ? n.call(name) : n }.flatten
+      prerequisites.each do |n|
+        t = Task[n]
+        unless t.done?
+          return prerequisites.select{|v| v = Task[v]; v && (!v.done? || !v.running?) }
+        end
+      end
+
+      @already_invoked = true
+
+      if needed?
+        @running = true
+        if $rake_root_fiber
+          return Fiber.new do
+            self.execute
+            $rake_root_fiber.transfer
+          end
+        else
+          self.execute
+        end
+      end
+
+      @done = true
+    end
+
+    # Execute the actions associated with this task.
+    def execute
+      puts "Execute #{name}" if $trace
+      self.class.enhance_with_matching_rule(name) if @actions.empty?
+      unless $dryrun
+        @actions.each { |act| act.call(self) }
+      end
+      @done = true
+      @running = false
+    end
+
+    # Is this task needed?
+    def needed?
+      true
+    end
+
+    # Timestamp for this task.  Basic tasks return the current time for
+    # their time stamp.  Other tasks can be more sophisticated.
+    def timestamp
+      Time.now
+    end
+
+    # Class Methods ----------------------------------------------------
+
     class << self
+
+      # Clear the task list.  This cause rake to immediately forget all
+      # the tasks that have been assigned.  (Normally used in the unit
+      # tests.)
+      def clear
+        TASKS.clear
+        RULES.clear
+      end
+
       # List of all defined tasks.
       def tasks
         TASKS.keys.sort.collect { |tn| Task[tn] }
@@ -115,8 +183,7 @@ module MiniRake
       # the given name already exists, the prerequisites and actions are
       # added to the existing task.
       def define_task(args, &block)
-        name, deps = resolve_args(args)
-        task_name = name_with_namespace($namespaces, name)
+        task_name, deps = resolve_args(args)
         lookup(task_name).enhance([deps].flatten, &block)
       end
 
@@ -127,11 +194,12 @@ module MiniRake
         RULES << [pattern, deps, block]
       end
 
+
       # Lookup a task.  Return an existing task if found, otherwise
       # create a task of the current type.
       def lookup(task_name)
         name = task_name.to_s
-        TASKS[name] ||= new(name)
+        TASKS[name] ||= self.new(name)
       end
 
       # If a rule can be found that matches the task name, enhance the
@@ -140,40 +208,25 @@ module MiniRake
       # the enhanced task or nil of no rule was found.
       def enhance_with_matching_rule(task_name)
         RULES.each do |pattern, extensions, block|
-          next unless  pattern && pattern.match(task_name)
-          sources = extensions.flat_map do |ext|
+          if pattern.match(task_name)
+            ext = extensions.first
+            deps = extensions[1..-1]
             case ext
-            when /%/
-              task_name.pathmap(ext)
-            when %r{/}
-              ext
-            when /^\./
-              source = task_name.sub(task_pattern, ext)
-              source == ext ? task_name.ext(ext) : source
             when String
-              ext
-            when Proc, Method
-              ext.arity == 1 ? ext.call(task_name) : ext.call
+              source = task_name.sub(/\.[^.]*$/, ext)
+            when Proc
+              source = ext.call(task_name)
             else
               fail "Don't know how to handle rule dependent: #{ext.inspect}"
             end
-          end
-          prereqs = sources.map do |source|
-            break nil unless File.exist?(source) || TASKS[source]
-            source
-          end
-          if prereqs
-            task = FileTask.define_task(task_name => prereqs, &block)
-            task.source = prereqs.first
-            return task
+            if File.exist?(source)
+              task = FileTask.define_task({task_name => [source]+deps}, &block)
+              task.source = source
+              return task
+            end
           end
         end
         nil
-      end
-
-      def name_with_namespace(namespaces, name_without_namespace) # :nodoc:
-        return name_without_namespace if namespaces.empty?
-        "#{namespaces * ':'}:#{name_without_namespace}"
       end
 
       private
@@ -194,82 +247,10 @@ module MiniRake
         [task_name, deps]
       end
     end
-
-    attr_reader :comment
-
-    # List of prerequisites for a task.
-    attr_reader :prerequisites
-
-    # Source dependency for rule synthesized tasks.  Nil if task was not
-    # sythesized from a rule.
-    attr_accessor :source
-
-    # Create a task named +task_name+ with no actions or prerequisites..
-    # use +enhance+ to add actions and prerequisites.
-    def initialize(task_name)
-      @name = task_name
-      @prerequisites = []
-      @actions = []
-      @comment = $last_desc
-      $last_desc = nil
-    end
-
-    # Enhance a task with prerequisites or actions.  Returns self.
-    def enhance(deps=nil, &block)
-      @prerequisites |= deps if deps
-      @actions << block if block_given?
-      self
-    end
-
-    # Name of the task.
-    def name
-      @name.to_s
-    end
-
-    # Invoke the task.  Prerequites are invoked first.
-    def invoke
-      puts "** Invoke #{name} (already=[#{@already_invoked}], needed=[#{needed?}]))" if $trace
-      return if @already_invoked
-      @already_invoked = true
-      prerequisites = @prerequisites.collect{ |n| n.is_a?(Proc) ? n.call(name) : n }.flatten
-      prerequisites.each{|n| invoke_prerequisite(n)}
-      execute if needed?
-    end
-
-    # Execute the actions associated with this task.
-    def execute
-      puts "** Execute #{name}" if $trace
-      self.class.enhance_with_matching_rule(name) if @actions.empty?
-      @actions.each { |act| act.call(self) } unless $dryrun
-    end
-
-    # Is this task needed?
-    def needed?
-      true
-    end
-
-    # Timestamp for this task.  Basic tasks return the current time for
-    # their time stamp.  Other tasks can be more sophisticated.
-    def timestamp
-      Time.now
-    end
-
-    private
-
-    def invoke_prerequisite(prerequisite)
-      *namespaces, _n = name.split(":", -1)
-      until namespaces.empty?
-        n = Task.name_with_namespace(namespaces, prerequisite)
-        unless n == name
-          task = TASKS[n]
-          return task.invoke if task
-        end
-        namespaces.pop
-      end
-      Task[prerequisite].invoke
-    end
   end
 
+
+  ######################################################################
   class FileTask < Task
     # Is this file task needed?  Yes if it doesn't exist, or if its time
     # stamp is out of date.
@@ -290,30 +271,20 @@ module MiniRake
   end
 
   module DSL
-    # Create a new rake namespace and use it for evaluating the given block.
-    def namespace(name, &block)
-      $namespaces << name
-      begin
-        block.call
-      ensure
-        $namespaces.pop
-      end
-    end
-
     # Declare a basic task.
     def task(args, &block)
-      Task.define_task(args, &block)
+      MiniRake::Task.define_task(args, &block)
     end
 
     # Declare a file task.
     def file(args, &block)
-      FileTask.define_task(args, &block)
+      MiniRake::FileTask.define_task(args, &block)
     end
 
     # Declare a set of files tasks to create the given directories on
     # demand.
     def directory(args, &block)
-      FileTask.define_task(args) do |t|
+      MiniRake::FileTask.define_task(args) do |t|
         block.call(t) unless block.nil?
         dir = args.is_a?(Hash) ? args.keys.first : args
         (dir.split(File::SEPARATOR) + ['']).inject do |acc, part|
@@ -326,7 +297,7 @@ module MiniRake
 
     # Declare a rule for auto-tasks.
     def rule(args, &block)
-      Task.create_rule(args, &block)
+      MiniRake::Task.create_rule(args, &block)
     end
 
     # Write a message to standard out if $verbose is enabled.
@@ -336,239 +307,299 @@ module MiniRake
     end
 
     # Run the system command +cmd+.
-    def sh(*cmd)
-      puts cmd * " " if $verbose
-      unless system(*cmd)
-        fail "Command failed with status (#{$?.exitstatus}): [#{cmd * ' '}]"
+    def sh(cmd)
+      puts cmd if $verbose
+
+      if !$rake_root_fiber || Fiber.current == $rake_root_fiber
+        system(cmd) or fail "Command Failed: [#{cmd}]"
+        return
       end
+
+      pid = Process.spawn(cmd)
+      $rake_fiber_table[pid] = {
+        fiber: Fiber.current,
+        command: cmd,
+        process_waiter: Process.detach(pid)
+      }
+      $rake_root_fiber.transfer
     end
 
     def desc(text)
-      $last_desc = text
-    end
-  end
-
-  module FileUtilsExt
-    def self.extended(mod)
-      require 'fileutils'
-      mod.extend FileUtils
-
-      FileUtils.commands.each do |command|
-        opt_names = FileUtils.options_of(command)
-        opts = []
-        opts << "verbose: $trace || $verbose || $verbose.nil?" if opt_names.include?("verbose")
-        opts << "noop: $dryrun" if opt_names.include?("noop")
-        next if opts.empty?
-
-        mod.instance_eval <<-EOS,  __FILE__, __LINE__ + 1
-          def #{command}(*args, &block)
-            default_opts = {#{opts * ", "}}
-            default_opts.merge!(args.pop) if Hash === args[-1]
-            args << default_opts
-            super
-          end
-        EOS
-      end
-    end
-  end
-
-  ######################################################################
-  # Rake main application object.  When invoking +rake+ from the command
-  # line, a App object is created and run.
-  #
-  class App
-    NAME = "rake"
-    RAKEFILES = ['rakefile', 'Rakefile']
-
-    OPTIONS = [
-      ['--dry-run',  '-n', GetoptLong::NO_ARGUMENT,
-        "Do a dry run without executing actions."],
-      ['--help',     '-H', GetoptLong::NO_ARGUMENT,
-        "Display this help message."],
-      ['--libdir',   '-I', GetoptLong::REQUIRED_ARGUMENT,
-        "Include LIBDIR in the search path for required modules."],
-      ['--nosearch', '-N', GetoptLong::NO_ARGUMENT,
-        "Do not search parent directories for the Rakefile."],
-      ['--prereqs',  '-P', GetoptLong::NO_ARGUMENT,
-        "Display the tasks and dependencies, then exit."],
-      ['--quiet',    '-q', GetoptLong::NO_ARGUMENT,
-        "Do not log messages to standard output (default)."],
-      ['--rakefile', '-f', GetoptLong::REQUIRED_ARGUMENT,
-        "Use FILE as the rakefile."],
-      ['--require',  '-r', GetoptLong::REQUIRED_ARGUMENT,
-        "Require MODULE before executing rakefile."],
-      ['--silent',   '-s', GetoptLong::NO_ARGUMENT,
-        "Like --quiet, but also suppresses the 'in directory' announcement."],
-      ['--tasks',    '-T', GetoptLong::NO_ARGUMENT,
-        "Display the tasks with descriptions, then exit."],
-      ['--trace',    '-t', GetoptLong::NO_ARGUMENT,
-        "Turn on invoke/execute tracing."],
-      ['--usage',    '-h', GetoptLong::NO_ARGUMENT,
-        "Display usage."],
-      ['--verbose',  '-v', GetoptLong::NO_ARGUMENT,
-        "Log message to standard output."],
-      ['--directory', '-C', GetoptLong::REQUIRED_ARGUMENT,
-        "Change executing directory of rakefiles."]
-    ]
-
-    # Create a App object.
-    def initialize
-      @rakefile = nil
-      @nosearch = false
-      @org_dir = Dir.pwd
-    end
-
-    # True if one of the files in RAKEFILES is in the current directory.
-    # If a match is found, it is copied into @rakefile.
-    def have_rakefile
-      RAKEFILES.each do |fn|
-        if File.exist?(fn)
-          @rakefile = fn
-          return true
-        end
-      end
-      return false
-    end
-
-    # Display the program usage line.
-    def usage
-      puts "#{NAME} [-f rakefile] {options} targets..."
-    end
-
-    # Display the rake command line help.
-    def help
-      usage
-      puts
-      puts "Options are ..."
-      puts
-      OPTIONS.sort.each do |long, short, mode, desc|
-        if mode == GetoptLong::REQUIRED_ARGUMENT
-          if desc =~ /\b([A-Z]{2,})\b/
-            long = long + "=#{$1}"
-          end
-        end
-        printf "  %-20s (%s)\n", long, short
-        printf "      %s\n", desc
-      end
-    end
-
-    # Display the tasks with descriptions
-    def display_tasks
-      width = Task.tasks.map{|t| t.name.size}.max
-      Task.tasks.each do |t|
-        printf "#{NAME} %-#{width}s  # %s\n", t.name, t.comment
-      end
-    end
-
-    # Display the tasks and prerequisites
-    def display_prerequisites
-      Task.tasks.each do |t|
-        puts "#{NAME} #{t.name}"
-        t.prerequisites.each { |pre| puts "    #{pre}" }
-      end
-    end
-
-    # Return a list of the command line options supported by the
-    # program.
-    def command_line_options
-      OPTIONS.collect { |lst| lst[0..-2] }
-    end
-
-    # Do the option defined by +opt+ and +value+.
-    def do_option(opt, value)
-      case opt
-      when '--dry-run'
-        $dryrun = true
-        $trace = true
-      when '--help'
-        help
-        exit
-      when '--libdir'
-        $:.push(value)
-      when '--nosearch'
-        @nosearch = true
-      when '--prereqs'
-        $show_prereqs = true
-      when '--quiet'
-        $verbose = false
-      when '--rakefile'
-        RAKEFILES.clear
-        RAKEFILES << value
-      when '--require'
-        require value
-      when '--silent'
-        $silent = true
-        $verbose = false
-      when '--tasks'
-        $show_tasks = true
-      when '--trace'
-        $trace = true
-      when '--usage'
-        usage
-        exit
-      when '--verbose'
-        $verbose = true
-      when '--directory'
-        Dir.chdir value
-      else
-        fail "Unknown option: #{opt}"
-      end
-    end
-
-    # Read and handle the command line options.
-    def handle_options
-      opts = GetoptLong.new(*command_line_options)
-      opts.each { |opt, value| do_option(opt, value) }
-    end
-
-    # Run the +rake+ application.
-    def run
-      handle_options
-      begin
-        here = Dir.pwd
-        while ! have_rakefile
-          Dir.chdir("..")
-          if Dir.pwd == here || @nosearch
-            fail "No Rakefile found (looking for: #{RAKEFILES.join(', ')})"
-          end
-          here = Dir.pwd
-        end
-        tasks = []
-        ARGV.each do |task_name|
-          if /^(\w+)=(.*)/.match(task_name)
-            ENV[$1] = $2
-          else
-            tasks << task_name
-          end
-        end
-        puts "(in #{Dir.pwd})" if !$silent && @org_dir != Dir.pwd
-        $rakefile = @rakefile
-        load @rakefile
-        if $show_tasks
-          display_tasks
-        elsif $show_prereqs
-          display_prerequisites
-        else
-          TOPLEVEL_BINDING.eval "extend MiniRake::FileUtilsExt"
-          tasks.push("default") if tasks.size == 0
-          tasks.each do |task_name|
-            Task[task_name].invoke
-          end
-        end
-      rescue Exception => ex
-        puts "#{NAME} aborted!"
-        puts ex.message
-        if $trace
-          puts ex.backtrace.join("\n")
-        else
-          puts ex.backtrace.find {|str| str =~ /#{@rakefile}/ } || ""
-        end
-        exit false
-      end
     end
   end
 end
 
 Rake = MiniRake
 extend MiniRake::DSL
-MiniRake.run
+
+
+######################################################################
+# Task Definition Functions ...
+
+######################################################################
+# Rake main application object.  When invoking +rake+ from the command
+# line, a RakeApp object is created and run.
+#
+class RakeApp
+  RAKEFILES = ['rakefile', 'Rakefile']
+
+  OPTIONS = [
+    ['--dry-run',  '-n', GetoptLong::NO_ARGUMENT,
+      "Do a dry run without executing actions."],
+    ['--help',     '-H', GetoptLong::NO_ARGUMENT,
+      "Display this help message."],
+    ['--libdir',   '-I', GetoptLong::REQUIRED_ARGUMENT,
+      "Include LIBDIR in the search path for required modules."],
+    ['--nosearch', '-N', GetoptLong::NO_ARGUMENT,
+      "Do not search parent directories for the Rakefile."],
+    ['--quiet',    '-q', GetoptLong::NO_ARGUMENT,
+      "Do not log messages to standard output (default)."],
+    ['--rakefile', '-f', GetoptLong::REQUIRED_ARGUMENT,
+      "Use FILE as the rakefile."],
+    ['--require',  '-r', GetoptLong::REQUIRED_ARGUMENT,
+      "Require MODULE before executing rakefile."],
+    ['--tasks',    '-T', GetoptLong::NO_ARGUMENT,
+      "Display the tasks and dependencies, then exit."],
+    ['--pull-gems','-p', GetoptLong::NO_ARGUMENT,
+      "Pull all git mrbgems."],
+    ['--trace',    '-t', GetoptLong::NO_ARGUMENT,
+      "Turn on invoke/execute tracing."],
+    ['--usage',    '-h', GetoptLong::NO_ARGUMENT,
+      "Display usage."],
+    ['--verbose',  '-v', GetoptLong::NO_ARGUMENT,
+      "Log message to standard output."],
+    ['--directory', '-C', GetoptLong::REQUIRED_ARGUMENT,
+      "Change executing directory of rakefiles."],
+    ['--jobs', '-j', GetoptLong::REQUIRED_ARGUMENT,
+      'Execute rake with parallel jobs.']
+  ]
+
+  # Create a RakeApp object.
+  def initialize
+    @rakefile = nil
+    @nosearch = false
+  end
+
+  # True if one of the files in RAKEFILES is in the current directory.
+  # If a match is found, it is copied into @rakefile.
+  def have_rakefile
+    RAKEFILES.each do |fn|
+      if File.exist?(fn)
+        @rakefile = fn
+        return true
+      end
+    end
+    return false
+  end
+
+  # Display the program usage line.
+  def usage
+      puts "rake [-f rakefile] {options} targets..."
+  end
+
+  # Display the rake command line help.
+  def help
+    usage
+    puts
+    puts "Options are ..."
+    puts
+    OPTIONS.sort.each do |long, short, mode, desc|
+      if mode == GetoptLong::REQUIRED_ARGUMENT
+        if desc =~ /\b([A-Z]{2,})\b/
+          long = long + "=#{$1}"
+        end
+      end
+      printf "  %-20s (%s)\n", long, short
+      printf "      %s\n", desc
+    end
+  end
+
+  # Display the tasks and dependencies.
+  def display_tasks
+    MiniRake::Task.tasks.each do |t|
+      puts "#{t.class} #{t.name}"
+      t.prerequisites.each { |pre| puts "    #{pre}" }
+    end
+  end
+
+  # Return a list of the command line options supported by the
+  # program.
+  def command_line_options
+    OPTIONS.collect { |lst| lst[0..-2] }
+  end
+
+  # Do the option defined by +opt+ and +value+.
+  def do_option(opt, value)
+    case opt
+    when '--dry-run'
+      $dryrun = true
+      $trace = true
+    when '--help'
+      help
+      exit
+    when '--libdir'
+      $:.push(value)
+    when '--nosearch'
+      @nosearch = true
+    when '--quiet'
+      $verbose = false
+    when '--rakefile'
+      RAKEFILES.clear
+      RAKEFILES << value
+    when '--require'
+      require value
+    when '--tasks'
+      $show_tasks = true
+    when '--pull-gems'
+      $pull_gems = true
+    when '--trace'
+      $trace = true
+    when '--usage'
+      usage
+      exit
+    when '--verbose'
+      $verbose = true
+    when '--version'
+      puts "rake, version #{RAKEVERSION}"
+      exit
+    when '--directory'
+      Dir.chdir value
+    when '--jobs'
+      $rake_jobs = [value.to_i, 1].max
+    else
+      fail "Unknown option: #{opt}"
+    end
+  end
+
+  # Read and handle the command line options.
+  def handle_options
+    $verbose = false
+    $pull_gems = false
+    opts = GetoptLong.new(*command_line_options)
+    opts.each { |opt, value| do_option(opt, value) }
+  end
+
+  # Run the +rake+ application.
+  def run
+    handle_options
+
+    unless $rake_root_fiber
+      require 'fiber'
+      $rake_root_fiber = Fiber.current
+    end
+
+    begin
+      here = Dir.pwd
+      while ! have_rakefile
+        Dir.chdir("..")
+        if Dir.pwd == here || @nosearch
+          fail "No Rakefile found (looking for: #{RAKEFILES.join(', ')})"
+        end
+        here = Dir.pwd
+      end
+      root_tasks = []
+      ARGV.each do |task_name|
+        if /^(\w+)=(.*)/.match(task_name)
+          ENV[$1] = $2
+        else
+          root_tasks << task_name
+        end
+      end
+      puts "(in #{Dir.pwd})"
+      $rakefile = @rakefile
+      load @rakefile
+      if $show_tasks
+        display_tasks
+      else
+        root_tasks.push("default") if root_tasks.empty?
+        # revese tasks for popping
+        root_tasks.reverse!
+
+        tasks = []
+        until root_tasks.empty?
+          root_name = root_tasks.pop
+          tasks << root_name
+          until tasks.empty?
+            task_name = tasks.pop
+            t = MiniRake::Task[task_name]
+            f = t.invoke
+
+            # append additional tasks to task queue
+            if f.kind_of?(Array)
+              tasks.push(*f)
+              tasks.uniq!
+            end
+
+            unless f.kind_of? Fiber
+              tasks.insert 0, task_name unless t.done?
+              if root_name == task_name
+                wait_process
+              end
+              next
+            end
+
+            wait_process while $rake_fiber_table.size >= $rake_jobs
+
+            f.transfer
+          end
+        end
+
+        wait_process until $rake_fiber_table.empty?
+      end
+    rescue Exception => e
+      begin
+        $rake_failed << e
+        wait_process until $rake_fiber_table.empty?
+      rescue Exception => next_e
+        e = next_e
+        retry
+      end
+    end
+
+    return if $rake_failed.empty?
+
+    puts "rake aborted!"
+    $rake_failed.each do |ex|
+      puts ex.message
+      if $trace || $verbose
+        puts ex.backtrace.join("\n")
+      else
+        puts ex.backtrace.find {|str| str =~ /#{@rakefile}/ } || ""
+      end
+    end
+    exit 1
+  end
+
+  def wait_process(count = 0)
+    dur = [0.0001 * (10 ** count), 1].min
+    sleep dur
+
+    exited = []
+    $rake_fiber_table.each do |pid, v|
+      exited << pid unless v[:process_waiter].alive?
+    end
+
+    exited.each do |pid|
+      ent = $rake_fiber_table.delete pid
+      st = ent[:process_waiter].value
+
+      # ignore process that isn't created by `sh` method
+      return if ent.nil?
+
+      if st.exitstatus != 0
+        raise "Command Failed: [#{ent[:command]}]"
+      end
+
+      fail 'task scheduling bug!' if $rake_fiber_table.size >= $rake_jobs
+
+      ent[:fiber].transfer
+    end
+
+    wait_process(count + 1) if !$rake_fiber_table.empty? && exited.empty?
+  end
+
+end
+
+if __FILE__ == $0 then
+  RakeApp.new.run
+end
