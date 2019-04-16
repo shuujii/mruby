@@ -79,19 +79,19 @@ iv_put(mrb_state *mrb, iv_tbl *t, mrb_sym sym, mrb_value val)
   }
 
   /* Not found */
-  t->size++;
   if (matched_seg) {
     matched_seg->key[matched_idx] = sym;
     matched_seg->val[matched_idx] = val;
+    t->size++;
     return;
   }
 
   seg = (segment*)mrb_malloc(mrb, sizeof(segment));
-  if (!seg) return;
   seg->next = NULL;
   seg->key[0] = sym;
   seg->val[0] = val;
   t->last_len = 1;
+  t->size++;
   if (prev) {
     prev->next = seg;
   }
@@ -346,9 +346,7 @@ mrb_obj_iv_set(mrb_state *mrb, struct RObject *obj, mrb_sym sym, mrb_value v)
 {
   iv_tbl *t;
 
-  if (MRB_FROZEN_P(obj)) {
-    mrb_raisef(mrb, E_FROZEN_ERROR, "can't modify frozen %S", mrb_obj_value(obj));
-  }
+  mrb_check_frozen(mrb, obj);
   assign_class_name(mrb, obj, sym, v);
   if (!obj->iv) {
     obj->iv = iv_new(mrb);
@@ -621,7 +619,7 @@ mrb_mod_class_variables(mrb_state *mrb, mrb_value mod)
   return ary;
 }
 
-MRB_API mrb_value
+mrb_value
 mrb_mod_cv_get(mrb_state *mrb, struct RClass *c, mrb_sym sym)
 {
   struct RClass * cls = c;
@@ -714,7 +712,7 @@ mrb_cv_set(mrb_state *mrb, mrb_value mod, mrb_sym sym, mrb_value v)
   mrb_mod_cv_set(mrb, mrb_class_ptr(mod), sym, v);
 }
 
-MRB_API mrb_bool
+mrb_bool
 mrb_mod_cv_defined(mrb_state *mrb, struct RClass * c, mrb_sym sym)
 {
   while (c) {
@@ -1106,6 +1104,7 @@ mrb_class_find_path(mrb_state *mrb, struct RClass *c)
     iv_del(mrb, c->iv, mrb_intern_lit(mrb, "__outer__"), NULL);
     iv_put(mrb, c->iv, mrb_intern_lit(mrb, "__classname__"), path);
     mrb_field_write_barrier_value(mrb, (struct RBasic*)c, path);
+    path = mrb_str_dup(mrb, path);
   }
   return path;
 }
@@ -1115,7 +1114,9 @@ mrb_class_find_path(mrb_state *mrb, struct RClass *c)
 mrb_bool
 mrb_ident_p(const char *s, mrb_int len)
 {
-  for (mrb_int i = 0; i < len; i++) {
+  mrb_int i;
+
+  for (i = 0; i < len; i++) {
     if (!identchar(s[i])) return FALSE;
   }
   return TRUE;

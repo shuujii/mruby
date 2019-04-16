@@ -216,10 +216,10 @@ assert('Float#to_s') do
   assert_equal("-0.0", -0.0.to_s)
   assert_equal("-3.25", -3.25.to_s)
   assert_equal("50.0", 50.0.to_s)
-  assert_equal("0.00025", 0.00025.to_s)
-  assert_equal("-0.00025", -0.00025.to_s)
-  assert_equal("2.5e-05", 0.000025.to_s)
-  assert_equal("-2.5e-05", -0.000025.to_s)
+  assert_equal("0.0125", 0.0125.to_s)
+  assert_equal("-0.0125", -0.0125.to_s)
+  assert_equal("1.0e-10", 0.0000000001.to_s)
+  assert_equal("-1.0e-10", -0.0000000001.to_s)
   assert_equal("1.0e+20", 1e20.to_s)
   assert_equal("-1.0e+20", -1e20.to_s)
   assert_equal("1.0e+16", 10000000000000000.0.to_s)
@@ -237,6 +237,12 @@ assert('Float#to_s') do
     assert_equal("100000000000000.0", 100000000000000.0.to_s)
     assert_equal("-100000000000000.0", -100000000000000.0.to_s)
   end
+end
+
+assert('Float#eql?') do
+  assert_true(5.0.eql?(5.0))
+  assert_false(5.0.eql?(5))
+  assert_false(5.0.eql?("5.0"))
 end
 
 end # const_defined?(:Float)

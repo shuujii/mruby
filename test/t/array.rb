@@ -239,7 +239,7 @@ assert('Array#pop', '15.2.12.5.21') do
   assert_equal([1,2], a)
   assert_equal(3, b)
 
-  assert_raise(RuntimeError) { [].freeze.pop }
+  assert_raise(FrozenError) { [].freeze.pop }
 end
 
 assert('Array#push', '15.2.12.5.22') do
@@ -288,7 +288,7 @@ assert('Array#shift', '15.2.12.5.27') do
   assert_equal([2,3], a)
   assert_equal(1, b)
 
-  assert_raise(RuntimeError) { [].freeze.shift }
+  assert_raise(FrozenError) { [].freeze.shift }
 end
 
 assert('Array#size', '15.2.12.5.28') do
@@ -298,11 +298,38 @@ assert('Array#size', '15.2.12.5.28') do
 end
 
 assert('Array#slice', '15.2.12.5.29') do
-  a = "12345".slice(1, 3)
-  b = a.slice(0)
+  a = [*(1..100)]
+  b = a.dup
 
-  assert_equal("2:", "#{b}:")
-  assert_equal(2, [1,2,3].[](1))
+  assert_equal(1, a.slice(0))
+  assert_equal(100, a.slice(99))
+  assert_nil(a.slice(100))
+  assert_equal(100, a.slice(-1))
+  assert_equal(99,  a.slice(-2))
+  assert_equal(1,   a.slice(-100))
+  assert_nil(a.slice(-101))
+  assert_equal([1],   a.slice(0,1))
+  assert_equal([100], a.slice(99,1))
+  assert_equal([],    a.slice(100,1))
+  assert_equal([100], a.slice(99,100))
+  assert_equal([100], a.slice(-1,1))
+  assert_equal([99],  a.slice(-2,1))
+  assert_equal([10, 11, 12], a.slice(9, 3))
+  assert_equal([10, 11, 12], a.slice(-91, 3))
+  assert_nil(a.slice(-101, 2))
+  assert_equal([1],   a.slice(0..0))
+  assert_equal([100], a.slice(99..99))
+  assert_equal([],    a.slice(100..100))
+  assert_equal([100], a.slice(99..200))
+  assert_equal([100], a.slice(-1..-1))
+  assert_equal([99],  a.slice(-2..-2))
+  assert_equal([10, 11, 12], a.slice(9..11))
+  assert_equal([10, 11, 12], a.slice(-91..-89))
+  assert_equal([10, 11, 12], a.slice(-91..-89))
+  assert_nil(a.slice(-101..-1))
+  assert_nil(a.slice(10, -3))
+  assert_equal([], a.slice(10..7))
+  assert_equal(b, a)
 end
 
 assert('Array#unshift', '15.2.12.5.30') do
@@ -388,7 +415,7 @@ end
 
 assert('Array#freeze') do
   a = [].freeze
-  assert_raise(RuntimeError) do
+  assert_raise(FrozenError) do
     a[0] = 1
   end
 end

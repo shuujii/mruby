@@ -493,20 +493,12 @@ str_index_str(mrb_state *mrb, mrb_value str, mrb_value str2, mrb_int offset)
   return mrb_str_index(mrb, str, ptr, len, offset);
 }
 
-static void
-check_frozen(mrb_state *mrb, struct RString *s)
-{
-  if (MRB_FROZEN_P(s)) {
-    mrb_raise(mrb, E_FROZEN_ERROR, "can't modify frozen string");
-  }
-}
-
 static mrb_value
 str_replace(mrb_state *mrb, struct RString *s1, struct RString *s2)
 {
   mrb_int len;
 
-  check_frozen(mrb, s1);
+  mrb_check_frozen(mrb, s1);
   if (s1 == s2) return mrb_obj_value(s1);
   s1->flags &= ~MRB_STR_NO_UTF;
   s1->flags |= s2->flags&MRB_STR_NO_UTF;
@@ -646,7 +638,7 @@ mrb_locale_from_utf8(const char *utf8, int len)
 MRB_API void
 mrb_str_modify(mrb_state *mrb, struct RString *s)
 {
-  check_frozen(mrb, s);
+  mrb_check_frozen(mrb, s);
   s->flags &= ~MRB_STR_NO_UTF;
   if (RSTR_SHARED_P(s)) {
     mrb_shared_string *shared = s->as.heap.aux.shared;
@@ -2006,7 +1998,7 @@ mrb_str_split_m(mrb_state *mrb, mrb_value str)
   return result;
 }
 
-MRB_API mrb_value
+static mrb_value
 mrb_str_len_to_inum(mrb_state *mrb, const char *str, mrb_int len, mrb_int base, int badcheck)
 {
   const char *p = str;
@@ -2174,7 +2166,7 @@ mrb_str_len_to_inum(mrb_state *mrb, const char *str, mrb_int len, mrb_int base, 
 }
 
 MRB_API mrb_value
-mrb_cstr_to_inum(mrb_state *mrb, const char *str, int base, int badcheck)
+mrb_cstr_to_inum(mrb_state *mrb, const char *str, mrb_int base, mrb_bool badcheck)
 {
   return mrb_str_len_to_inum(mrb, str, strlen(str), base, badcheck);
 }
@@ -2844,7 +2836,7 @@ mrb_float_read(const char *string, char **endPtr)
      */
 
     p = string;
-    while (isspace(*p)) {
+    while (ISSPACE(*p)) {
       p += 1;
     }
     if (*p == '-') {
@@ -2867,7 +2859,7 @@ mrb_float_read(const char *string, char **endPtr)
     for (mantSize = 0; ; mantSize += 1)
     {
       c = *p;
-      if (!isdigit(c)) {
+      if (!ISDIGIT(c)) {
         if ((c != '.') || (decPt >= 0)) {
           break;
         }
@@ -2952,7 +2944,7 @@ mrb_float_read(const char *string, char **endPtr)
         }
         expSign = FALSE;
       }
-      while (isdigit(*p)) {
+      while (ISDIGIT(*p)) {
         exp = exp * 10 + (*p - '0');
         if (exp > 19999) {
           exp = 19999;

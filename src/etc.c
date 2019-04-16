@@ -167,6 +167,7 @@ mrb_word_boxing_float_value(mrb_state *mrb, mrb_float f)
 
   v.value.p = mrb_obj_alloc(mrb, MRB_TT_FLOAT, mrb->float_class);
   v.value.fp->f = f;
+  MRB_SET_FROZEN_FLAG(v.value.bp);
   return v;
 }
 
@@ -177,6 +178,7 @@ mrb_word_boxing_float_pool(mrb_state *mrb, mrb_float f)
   nf->tt = MRB_TT_FLOAT;
   nf->c = mrb->float_class;
   nf->f = f;
+  MRB_SET_FROZEN_FLAG(nf);
   return mrb_obj_value(nf);
 }
 #endif  /* MRB_WITHOUT_FLOAT */
@@ -203,7 +205,6 @@ mrb_regexp_p(mrb_state *mrb, mrb_value v)
     return mrb_obj_is_kind_of(mrb, v, mrb_class_get(mrb, REGEXP_CLASS));
   }
   else {
-    mrb->flags |= MRB_STATE_REGEXP;
     mrb->flags |= MRB_STATE_NO_REGEXP;
   }
   return FALSE;
