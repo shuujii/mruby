@@ -122,6 +122,22 @@ assert('Kernel#define_singleton_method') do
   assert_equal :singleton_method_ok, o.test_method
 end
 
+assert('Kernel#singleton_class') do
+  o1 = Object.new
+  assert_same(o1.singleton_class, class << o1; self end)
+
+  o2 = Object.new
+  sc2 = class << o2; self end
+  assert_same(o2.singleton_class, sc2)
+
+  o3 = Object.new
+  sc3 = o3.singleton_class
+  o3.freeze
+  assert_predicate(sc3, :frozen?)
+
+  assert_predicate(Object.new.freeze.singleton_class, :frozen?)
+end
+
 def labeled_module(name, &block)
   Module.new do
     (class <<self; self end).class_eval do
@@ -171,7 +187,6 @@ assert('Module#class_variable_set', '15.2.2.4.18') do
       @@foo
     end
   end
-
   assert_equal 99, Test4ClassVariableSet.class_variable_set(:@@cv, 99)
   assert_equal 101, Test4ClassVariableSet.class_variable_set(:@@foo, 101)
   assert_true Test4ClassVariableSet.class_variables.include? :@@cv
@@ -180,6 +195,13 @@ assert('Module#class_variable_set', '15.2.2.4.18') do
   %w[@@ @@1 @@x= @x @ x 1].each do |n|
     assert_raise(NameError) { Test4ClassVariableSet.class_variable_set(n, 1) }
   end
+
+  m = Module.new.freeze
+  assert_raise(FrozenError) { m.class_variable_set(:@@cv, 1) }
+
+  parent = Class.new{ class_variable_set(:@@a, nil) }.freeze
+  child = Class.new(parent)
+  assert_raise(FrozenError) { child.class_variable_set(:@@a, 1) }
 end
 
 assert('Module#class_variables', '15.2.2.4.19') do

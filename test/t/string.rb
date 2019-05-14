@@ -37,11 +37,14 @@ end
 assert('String#*', '15.2.10.5.5') do
   assert_equal 'aaaaa', 'a' * 5
   assert_equal '', 'a' * 0
-  assert_raise(ArgumentError) do
-    'a' * -1
-  end
+  assert_equal 'aa', 'a' * 2.1
+  assert_raise(ArgumentError) { 'a' * -1 }
+  assert_raise(RangeError) { '' * 1e30 }
+  assert_raise(RangeError) { '' * Float::INFINITY }
+  assert_raise(RangeError) { '' * Float::NAN }
+  assert_raise(TypeError) { 'a' * '1' }
+  assert_raise(TypeError) { 'a' * nil }
 end
-
 assert('String#[]', '15.2.10.5.6') do
   # length of args is 1
   a = 'abc'[0]
@@ -161,6 +164,9 @@ assert('String#[]=') do
    assert_equal 'aXc', e
   end
 
+  assert_raise(TypeError) { 'a'[0] = 1 }
+  assert_raise(TypeError) { 'a'[:a] = '1' }
+
   # length of args is 2
   a1 = 'abc'
   assert_raise(IndexError) do
@@ -197,6 +203,10 @@ assert('String#[]=') do
   assert_raise(IndexError) do
     b3['XX'] = 'Y'
   end
+
+  assert_raise(TypeError) { 'a'[:a, 0] = '1' }
+  assert_raise(TypeError) { 'a'[0, :a] = '1' }
+  assert_raise(TypeError) { 'a'[0, 1] = 1 }
 end
 
 assert('String#capitalize', '15.2.10.5.7') do
@@ -502,7 +512,9 @@ assert('String#rindex(UTF-8)', '15.2.10.5.31') do
   assert_equal nil, str.index("さ")
 end if UTF8STRING
 
-# 'String#scan', '15.2.10.5.32' will be tested in mrbgems.
+# assert('String#scan', '15.2.10.5.32') do
+#   # Not implemented yet
+# end
 
 assert('String#size', '15.2.10.5.33') do
   assert_equal 3, 'abc'.size

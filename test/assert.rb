@@ -1,3 +1,4 @@
+$undefined = Object.new
 $ok_test = 0
 $ko_test = 0
 $kill_test = 0
@@ -136,6 +137,58 @@ def _assert_include(affirmed, collection, obj, msg = nil)
   assert_true(ret, msg, diff)
 end
 
+def assert_predicate(*args); _assert_predicate(true, *args) end
+def assert_not_predicate(*args); _assert_predicate(false, *args) end
+def _assert_predicate(affirmed, obj, op, msg = nil)
+  unless ret = obj.__send__(op) == affirmed
+    diff = "    Expected #{obj.inspect} to #{'not ' unless affirmed}be #{op}."
+  end
+  assert_true(ret, msg, diff)
+end
+
+def assert_operator(*args); _assert_operator(true, *args) end
+def assert_not_operator(*args); _assert_operator(false, *args) end
+def _assert_operator(affirmed, obj1, op, obj2 = $undefined, msg = nil)
+  return _assert_predicate(affirmed, obj1, op, msg) if obj2 == $undefined
+  unless ret = obj1.__send__(op, obj2) == affirmed
+    diff = "    Expected #{obj1.inspect} to #{'not ' unless affirmed}be #{op} #{obj2.inspect}."
+  end
+  assert_true(ret, msg, diff)
+end
+
+##
+# Fail unless +str+ matches against +pattern+.
+#
+# +pattern+ is interpreted as pattern for File.fnmatch?. It may contain the
+# following metacharacters:
+#
+# <code>*</code> ::
+#   Matches any string.
+#
+# <code>?</code> ::
+#   Matches any one character.
+#
+# <code>[_SET_]</code>, <code>[^_SET_]</code> (<code>[!_SET_]</code>) ::
+#   Matches any one character in _SET_.  Behaves like character sets in
+#   Regexp, including set negation (<code>[^a-z]</code>).
+#
+# <code>{_A_,_B_}</code> ::
+#   Matches pattern _A_ or pattern _B_.
+#
+# <code> \ </code> ::
+#   Escapes the next character.
+def assert_match(*args); _assert_match(true, *args) end
+def assert_not_match(*args); _assert_match(false, *args) end
+def _assert_match(affirmed, pattern, str, msg = nil)
+  receiver, *args = RUBY_ENGINE == "mruby" ?
+    [self, :_str_match?, pattern, str] :
+    [File, :fnmatch?, pattern, str, File::FNM_EXTGLOB|File::FNM_DOTMATCH]
+  unless ret = !receiver.__send__(*args) == !affirmed
+    diff = "    Expected #{pattern.inspect} to #{'not ' unless affirmed}match #{str.inspect}."
+  end
+  assert_true(ret, msg, diff)
+end
+
 ##
 # Fails unless +obj+ is a kind of +cls+.
 def assert_kind_of(cls, obj, msg = nil)
@@ -194,7 +247,7 @@ def pass
   assert_true(true)
 end
 
-def flunk(msg = nil, diff = "Epic Fail!")
+def flunk(msg = "Epic Fail!", diff = "")
   assert_true(false, msg, diff)
 end
 

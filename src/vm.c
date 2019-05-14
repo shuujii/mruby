@@ -490,22 +490,21 @@ mrb_funcall_with_block(mrb_state *mrb, mrb_value self, mrb_sym mid, mrb_int argc
     if (mrb->c->stbase <= argv && argv < mrb->c->stend) {
       voff = argv - mrb->c->stbase;
     }
-    if (MRB_METHOD_CFUNC_P(m)) {
-      mrb_stack_extend(mrb, argc + 2);
-    }
-    else if (argc >= CALL_MAXARGS) {
+    if (argc >= CALL_MAXARGS) {
       mrb_value args = mrb_ary_new_from_values(mrb, argc, argv);
 
-      mrb_stack_extend(mrb, 3);
       mrb->c->stack[1] = args;
       ci->argc = -1;
       argc = 1;
     }
-    else if (MRB_METHOD_PROC_P(m)) {
+    mrb_stack_extend(mrb, argc + 2);
+    if (MRB_METHOD_PROC_P(m)) {
       struct RProc *p = MRB_METHOD_PROC(m);
 
       ci->proc = p;
-      mrb_stack_extend(mrb, p->body.irep->nregs + argc);
+      if (!MRB_PROC_CFUNC_P(p)) {
+        mrb_stack_extend(mrb, p->body.irep->nregs + argc);
+      }
     }
     if (voff >= 0) {
       argv = mrb->c->stbase + voff;
@@ -2863,11 +2862,11 @@ mrb_top_run(mrb_state *mrb, struct RProc *proc, mrb_value self, unsigned int sta
     return mrb_vm_run(mrb, proc, self, stack_keep);
   }
   ci = cipush(mrb);
+  ci->stackent = mrb->c->stack;
   ci->mid = 0;
   ci->acc = CI_ACC_SKIP;
   ci->target_class = mrb->object_class;
   v = mrb_vm_run(mrb, proc, self, stack_keep);
-  cipop(mrb);
 
   return v;
 }

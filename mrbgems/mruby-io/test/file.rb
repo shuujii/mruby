@@ -1,15 +1,13 @@
 ##
 # File Test
 
-assert('File TEST SETUP') do
-  MRubyIOTestUtil.io_test_setup
-end
+MRubyIOTestUtil.io_test_setup
 
-assert('File', '15.2.21') do
+assert('File.class', '15.2.21') do
   assert_equal Class, File.class
 end
 
-assert('File', '15.2.21.2') do
+assert('File.superclass', '15.2.21.2') do
   assert_equal IO, File.superclass
 end
 
@@ -35,6 +33,7 @@ assert('File.basename') do
   assert_equal 'a', File.basename('/a/')
   assert_equal 'b', File.basename('/a/b')
   assert_equal 'b', File.basename('../a/b')
+  assert_raise(ArgumentError) { File.basename("/a/b\0") }
 end
 
 assert('File.dirname') do
@@ -108,6 +107,8 @@ assert('File.realpath') do
       MRubyIOTestUtil.rmdir dir
     end
   end
+
+  assert_raise(ArgumentError) { File.realpath("TO\0DO") }
 end
 
 assert("File.readlink") do
@@ -204,6 +205,4 @@ assert('File.chmod') do
   end
 end
 
-assert('File TEST CLEANUP') do
-  assert_nil MRubyIOTestUtil.io_test_cleanup
-end
+MRubyIOTestUtil.io_test_cleanup

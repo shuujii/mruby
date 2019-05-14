@@ -194,6 +194,15 @@ str_decref(mrb_state *mrb, mrb_shared_string *shared)
   }
 }
 
+static void
+check_null_byte(mrb_state *mrb, mrb_value str)
+{
+  mrb_to_str(mrb, str);
+  if (memchr(RSTRING_PTR(str), '\0', RSTRING_LEN(str))) {
+    mrb_raise(mrb, E_ARGUMENT_ERROR, "string contains null byte");
+  }
+}
+
 void
 mrb_gc_free_str(mrb_state *mrb, struct RString *str)
 {
@@ -723,14 +732,8 @@ mrb_str_to_cstr(mrb_state *mrb, mrb_value str0)
 {
   struct RString *s;
 
-  if (!mrb_string_p(str0)) {
-    mrb_raise(mrb, E_TYPE_ERROR, "expected String");
-  }
-
+  check_null_byte(mrb, str0);
   s = str_new(mrb, RSTRING_PTR(str0), RSTRING_LEN(str0));
-  if ((strlen(RSTR_PTR(s)) ^ RSTR_LEN(s)) != 0) {
-    mrb_raise(mrb, E_ARGUMENT_ERROR, "string contains null byte");
-  }
   return RSTR_PTR(s);
 }
 
@@ -997,20 +1000,6 @@ mrb_string_value_len(mrb_state *mrb, mrb_value ptr)
   return RSTRING_LEN(ptr);
 }
 
-void
-mrb_noregexp(mrb_state *mrb, mrb_value self)
-{
-  mrb_raise(mrb, E_NOTIMP_ERROR, "Regexp class not implemented");
-}
-
-void
-mrb_regexp_check(mrb_state *mrb, mrb_value obj)
-{
-  if (mrb_regexp_p(mrb, obj)) {
-    mrb_noregexp(mrb, obj);
-  }
-}
-
 MRB_API mrb_value
 mrb_str_dup(mrb_state *mrb, mrb_value str)
 {
@@ -1026,7 +1015,6 @@ mrb_str_aref(mrb_state *mrb, mrb_value str, mrb_value indx)
 {
   mrb_int idx;
 
-  mrb_regexp_check(mrb, indx);
   switch (mrb_type(indx)) {
     case MRB_TT_FIXNUM:
       idx = mrb_fixnum(indx);
@@ -1119,12 +1107,8 @@ mrb_str_aref_m(mrb_state *mrb, mrb_value str)
   if (argc == 2) {
     mrb_int n1, n2;
 
-    mrb_regexp_check(mrb, a1);
     mrb_get_args(mrb, "ii", &n1, &n2);
     return str_substr(mrb, str, n1, n2);
-  }
-  if (argc != 1) {
-    mrb_raisef(mrb, E_ARGUMENT_ERROR, "wrong number of arguments (%S for 1)", mrb_fixnum_value(argc));
   }
   return mrb_str_aref(mrb, str, a1);
 }
@@ -1549,7 +1533,6 @@ mrb_str_index_m(mrb_state *mrb, mrb_value str)
     else
       sub = mrb_nil_value();
   }
-  mrb_regexp_check(mrb, sub);
   clen = RSTRING_CHAR_LEN(str);
   if (pos < 0) {
     pos += clen;
@@ -1801,7 +1784,6 @@ mrb_str_rindex(mrb_state *mrb, mrb_value str)
     if (pos < 0) {
       pos += len;
       if (pos < 0) {
-        mrb_regexp_check(mrb, sub);
         return mrb_nil_value();
       }
     }
@@ -1815,7 +1797,6 @@ mrb_str_rindex(mrb_state *mrb, mrb_value str)
       sub = mrb_nil_value();
   }
   pos = chars2bytes(str, 0, pos);
-  mrb_regexp_check(mrb, sub);
 
   switch (mrb_type(sub)) {
     default: {
@@ -1909,16 +1890,11 @@ mrb_str_split_m(mrb_state *mrb, mrb_value str)
   if (argc == 0 || mrb_nil_p(spat)) {
     split_type = awk;
   }
-  else {
-    if (mrb_string_p(spat)) {
-      split_type = string;
-      if (RSTRING_LEN(spat) == 1 && RSTRING_PTR(spat)[0] == ' ') {
-          split_type = awk;
-      }
-    }
-    else {
-      mrb_noregexp(mrb, str);
-    }
+  else if (!mrb_string_p(spat)) {
+    mrb_raise(mrb, E_TYPE_ERROR, "expected String");
+  }
+  else if (RSTRING_LEN(spat) == 1 && RSTRING_PTR(spat)[0] == ' ') {
+    split_type = awk;
   }
 
   result = mrb_ary_new(mrb);
@@ -1955,7 +1931,7 @@ mrb_str_split_m(mrb_state *mrb, mrb_value str)
       }
     }
   }
-  else if (split_type == string) {
+  else {                        /* split_type == string */
     mrb_int str_len = RSTRING_LEN(str);
     mrb_int pat_len = RSTRING_LEN(spat);
     mrb_int idx = 0;
@@ -1975,9 +1951,6 @@ mrb_str_split_m(mrb_state *mrb, mrb_value str)
       if (lim_p && lim <= ++i) break;
     }
     beg = idx;
-  }
-  else {
-    mrb_noregexp(mrb, str);
   }
   if (RSTRING_LEN(str) > 0 && (lim_p || RSTRING_LEN(str) > beg || lim < 0)) {
     if (RSTRING_LEN(str) == beg) {
@@ -2142,7 +2115,7 @@ mrb_str_len_to_inum(mrb_state *mrb, const char *str, mrb_int len, mrb_int base, 
       else
 #endif
       {
-        mrb_raisef(mrb, E_ARGUMENT_ERROR, "string (%S) too big for integer",
+        mrb_raisef(mrb, E_RANGE_ERROR, "string (%S) too big for integer",
                    mrb_str_new(mrb, str, pend-str));
       }
     }
@@ -2174,20 +2147,27 @@ mrb_cstr_to_inum(mrb_state *mrb, const char *str, mrb_int base, mrb_bool badchec
 MRB_API const char*
 mrb_string_value_cstr(mrb_state *mrb, mrb_value *ptr)
 {
-  mrb_value str = mrb_to_str(mrb, *ptr);
-  struct RString *ps = mrb_str_ptr(str);
-  mrb_int len = mrb_str_strlen(mrb, ps);
-  char *p = RSTR_PTR(ps);
+  struct RString *ps;
+  const char *p;
+  mrb_int len;
 
-  if (!p || p[len] != '\0') {
+  check_null_byte(mrb, *ptr);
+  ps = mrb_str_ptr(*ptr);
+  p = RSTR_PTR(ps);
+  len = RSTR_LEN(ps);
+  if (p[len] == '\0') {
+    return p;
+  }
+  else {
     if (MRB_FROZEN_P(ps)) {
-      *ptr = str = mrb_str_dup(mrb, str);
-      ps = mrb_str_ptr(str);
+      ps = str_new(mrb, p, len);
+      *ptr = mrb_obj_value(ps);
     }
-    mrb_str_modify(mrb, ps);
+    else {
+      mrb_str_modify(mrb, ps);
+    }
     return RSTR_PTR(ps);
   }
-  return p;
 }
 
 MRB_API mrb_value
@@ -2301,22 +2281,7 @@ bad:
 MRB_API double
 mrb_str_to_dbl(mrb_state *mrb, mrb_value str, mrb_bool badcheck)
 {
-  char *s;
-  mrb_int len;
-
-  mrb_to_str(mrb, str);
-  s = RSTRING_PTR(str);
-  len = RSTRING_LEN(str);
-  if (s) {
-    if (badcheck && memchr(s, '\0', len)) {
-      mrb_raise(mrb, E_ARGUMENT_ERROR, "string for Float contains null byte");
-    }
-    if (s[len]) {    /* no sentinel somehow */
-      struct RString *temp_str = str_new(mrb, s, len);
-      s = RSTR_PTR(temp_str);
-    }
-  }
-  return mrb_cstr_to_dbl(mrb, s, badcheck);
+  return mrb_cstr_to_dbl(mrb, mrb_string_value_cstr(mrb, &str), badcheck);
 }
 
 /* 15.2.10.5.39 */
