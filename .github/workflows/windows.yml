@@ -10,6 +10,11 @@ jobs:
         vs: [2017]
       fail-fast: false
     steps:
+
+#
+# Chocolatey のキャッシュが上手く効かない。
+#
+
 #      - uses: actions/cache@v1
 #        with:
 #          path: C:\Users\runneradmin\AppData\Local\Temp\chocolatey
@@ -22,33 +27,36 @@ jobs:
 #          choco config get cacheLocation
 #          choco install --no-progress winflexbison
 
-      - id: cache-chocolatey
-        uses: actions/cache@v1
-        with:
-          path: C:\ProgramData\chocolatey\lib\winflexbison\tools
-#          path: C:\Users\runneradmin\AppData\Local\Temp\chocolatey
-          key: ${{ runner.os }}-chocolatey-${{ matrix.os }}
+#      - id: cache-chocolatey
+#        uses: actions/cache@v1
+#        with:
+#          path: C:\ProgramData\chocolatey\lib\winflexbison\tools
+##          path: C:\Users\runneradmin\AppData\Local\Temp\chocolatey
+#          key: ${{ runner.os }}-chocolatey-${{ matrix.os }}
+
       - name: Install libraries with chocolatey
 #        if: steps.cache-chocolatey.outputs.cache-hit != 'true'
         run: |
           choco install --no-progress winflexbison
+
       - uses: actions/checkout@v1
         with:
           fetch-depth: 1
-      - name: Tools
-        shell: cmd
-        run: |
-          tree /f /a C:\ProgramData\chocolatey\lib\winflexbison\tools
-          tree /f /a C:\Users\runneradmin\AppData\Local\Temp\chocolatey
-          dir C:\ProgramData\chocolatey\bin
-      - name: Build
+#      - name: Tools
+#        shell: cmd
+#        run: |
+#          tree /f /a C:\ProgramData\chocolatey\lib\winflexbison\tools
+#          tree /f /a C:\Users\runneradmin\AppData\Local\Temp\chocolatey
+#          dir C:\ProgramData\chocolatey\bin
+#      - name: Build
+      - name: Test
         shell: cmd
 #          set YACC=C:\ProgramData\chocolatey\lib\winflexbison\tools\win_bison
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\${{ matrix.vs }}\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           set YACC=win_bison
           set MRUBY_CONFIG=github_actions_config.rb
-          rake -E $stdout.sync=true
+          rake -E $stdout.sync=true test
       - name: Debug
         shell: cmd
         run: |
