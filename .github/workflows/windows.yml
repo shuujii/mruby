@@ -1,0 +1,34 @@
+name: Windows
+on:
+  push
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windws-latest]
+        vs: [2017]
+    steps:
+      - uses: actions/cache@v1
+        with:
+          path: C:\Users\runneradmin\AppData\Local\Temp\chocolatey
+          key: ${{ runner.os }}-chocolatey-${{ matrix.os }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-chocolatey-${{ matrix.os }}-
+            ${{ runner.os }}-chocolatey-
+      - name: Install libraries with chocolatey
+        run: |
+          choco config get cacheLocation
+          choco install --no-progress winflexbison
+      - uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+      - name: Build
+        run: |
+          call "C:\Program Files (x86)\Microsoft Visual Studio\${{ matrix.vs }}\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          set YACC=win_bison
+          set MRUBY_CONFIG=github_actions_config.rb
+          rake --trace -E $stdout.sync=true
+        shell: cmd
+      - name: Debug
+        run: bin/mruby -e1
