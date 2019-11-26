@@ -55,12 +55,12 @@ jobs:
 #      - name: Build
       - name: Build and test
         shell: cmd
-#          set YACC=C:\ProgramData\chocolatey\lib\winflexbison\tools\win_bison
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\${{ matrix.vs }}\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          set YACC=win_bison
+           rem set YACC=win_bison
+          set YACC=C:\ProgramData\chocolatey\lib\winflexbison\tools\win_bison
           set MRUBY_CONFIG=github_actions_config.rb
-          rem rake -E $stdout.sync=true test
+           rem rake -E $stdout.sync=true test
           rake -E $stdout.sync=true
       - name: Debug
         shell: cmd
