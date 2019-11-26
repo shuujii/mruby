@@ -25,10 +25,11 @@ jobs:
       - id: cache-chocolatey
         uses: actions/cache@v1
         with:
-          path: C:\Users\runneradmin\AppData\Local\Temp\chocolatey
+          path: C:\ProgramData\chocolatey\lib\winflexbison\tools
+#          path: C:\Users\runneradmin\AppData\Local\Temp\chocolatey
           key: ${{ runner.os }}-chocolatey-${{ matrix.os }}
       - name: Install libraries with chocolatey
-#        if: steps.cache-chocolatey.outputs.cache-hit != 'true'
+        if: steps.cache-chocolatey.outputs.cache-hit != 'true'
         run: |
           choco install --no-progress winflexbison
 
