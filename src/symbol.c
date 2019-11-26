@@ -65,6 +65,12 @@ struct e {
   };
 };
 
+struct f {
+  uint32_t type   : 2;
+  uint32_t embed_len : 6;
+  uint8_t prev;
+};
+
 typedef struct symbol_name {
   union {
     struct {
@@ -718,6 +724,7 @@ if (getenv("MY")) {
   p("offsetof(c.prev)", offsetof(struct c, prev));
   p("offsetof(d.prev)", offsetof(struct d, prev));
   p("offsetof(ary)", offsetof(struct RStringEmbed, ary));
+  p("offsetof(f.prev)", offsetof(struct f, prev));
   p("sizeof(e)", sizeof(struct e));
   p("offsetof(e.len)", offsetof(struct e, len));
 }
