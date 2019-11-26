@@ -29,7 +29,7 @@ jobs:
 #          path: C:\Users\runneradmin\AppData\Local\Temp\chocolatey
           key: ${{ runner.os }}-chocolatey-${{ matrix.os }}
       - name: Install libraries with chocolatey
-        if: steps.cache-chocolatey.outputs.cache-hit != 'true'
+#        if: steps.cache-chocolatey.outputs.cache-hit != 'true'
         run: |
           choco install --no-progress winflexbison
       - uses: actions/checkout@v1
@@ -39,13 +39,14 @@ jobs:
         shell: cmd
         run: |
           tree /f /a C:\ProgramData\chocolatey\lib\winflexbison\tools
+          tree /f /a C:\Users\runneradmin\AppData\Local\Temp\chocolatey
           dir C:\ProgramData\chocolatey\bin
       - name: Build
         shell: cmd
-#          set YACC=win_bison
+#          set YACC=C:\ProgramData\chocolatey\lib\winflexbison\tools\win_bison
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\${{ matrix.vs }}\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          set YACC=C:\ProgramData\chocolatey\lib\winflexbison\tools\win_bison
+          set YACC=win_bison
           set MRUBY_CONFIG=github_actions_config.rb
           rake -E $stdout.sync=true
       - name: Debug
