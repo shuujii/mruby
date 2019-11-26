@@ -28,7 +28,7 @@ jobs:
           path: C:\Users\runneradmin\AppData\Local\Temp\chocolatey
           key: ${{ runner.os }}-chocolatey-${{ matrix.os }}
       - name: Install libraries with chocolatey
-        if: steps.cache-chocolatey.outputs.cache-hit != 'true'
+#        if: steps.cache-chocolatey.outputs.cache-hit != 'true'
         run: |
           choco install --no-progress winflexbison
 
