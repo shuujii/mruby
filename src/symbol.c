@@ -27,6 +27,21 @@ struct a {
   uint8_t prev;
 };
 
+struct b {
+  uint16_t a : 8;
+  uint8_t prev;
+};
+
+struct c {
+  uint8_t a : 8;
+  uint8_t prev;
+};
+
+struct d {
+  uint8_t a;
+  uint8_t prev;
+};
+
 typedef struct symbol_name {
   union {
     struct {
@@ -667,6 +682,9 @@ if (getenv("MY")) {
   p("offsetof(embed_name)", offsetof(symbol_name, embed_name));
   p("sizeof(a)", sizeof(struct a));
   p("offsetof(a.prev)", offsetof(struct a, prev));
+  p("offsetof(b.prev)", offsetof(struct b, prev));
+  p("offsetof(c.prev)", offsetof(struct c, prev));
+  p("offsetof(d.prev)", offsetof(struct d, prev));
 //  p("offsetof(ary)", offsetof(struct RStringEmbed, ary));
 }
 
