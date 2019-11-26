@@ -24,6 +24,7 @@ typedef enum symbol_type {
 struct a {
   symbol_type type   : 2;
   uint16_t embed_len : 6;
+  uint8_t prev;
 };
 
 typedef struct symbol_name {
@@ -665,6 +666,7 @@ if (getenv("MY")) {
   p("offsetof(padding)", offsetof(symbol_name, padding));
   p("offsetof(embed_name)", offsetof(symbol_name, embed_name));
   p("sizeof(a)", sizeof(struct a));
+  p("offsetof(a.prev)", offsetof(struct a, prev));
 //  p("offsetof(ary)", offsetof(struct RStringEmbed, ary));
 }
 
