@@ -38,15 +38,15 @@ jobs:
       - name: Tools
         shell: cmd
         run: |
-          dir C:\ProgramData\chocolatey\lib\winflexbison\tools
-      - name: Build
-        shell: cmd
-#          set YACC=win_bison
-        run: |
-          call "C:\Program Files (x86)\Microsoft Visual Studio\${{ matrix.vs }}\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          set YACC=C:\ProgramData\chocolatey\lib\winflexbison\tools\win_bison
-          set MRUBY_CONFIG=github_actions_config.rb
-          rake -E $stdout.sync=true
+          tree /f C:\ProgramData\chocolatey\lib\winflexbison\tools
+#      - name: Build
+#        shell: cmd
+##          set YACC=win_bison
+#        run: |
+#          call "C:\Program Files (x86)\Microsoft Visual Studio\${{ matrix.vs }}\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+#          set YACC=C:\ProgramData\chocolatey\lib\winflexbison\tools\win_bison
+#          set MRUBY_CONFIG=github_actions_config.rb
+#          rake -E $stdout.sync=true
       - name: Debug
         shell: cmd
         run: |
