@@ -35,4 +35,4 @@ jobs:
         shell: cmd
         run: |
           set MY=1
-          bin/mruby -e1
+          bin\mruby -e1
