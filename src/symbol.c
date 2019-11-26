@@ -74,23 +74,17 @@ struct f {
 typedef struct symbol_name {
   union {
     struct {
-      symbol_type type   : 2;
-      uint16_t embed_len : 6;
+//      symbol_type type   : 2;
+//      uint16_t embed_len : 6;
+      uint8_t type   : 2;
+      uint8_t embed_len : 6;
       uint8_t prev;
       uint16_t len;
       const char *name;
-//      const char *name;
-//      uint16_t len;
-//      char pad[sizeof(void*)-4];
-//      uint8_t prev;
-//      symbol_type type   : 2;
-//      uint16_t embed_len : 6;
     };
     struct {
       uint16_t padding;  /* space for `type`, `embed_len` and `prev` */
       char embed_name[MRB_SYMBOL_EMBED_LEN_MAX];
-//      char embed_name[MRB_SYMBOL_EMBED_LEN_MAX];
-//      uint16_t padding;  /* space for `type`, `embed_len` and `prev` */
     };
   };
 } symbol_name;
