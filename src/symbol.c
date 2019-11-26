@@ -45,15 +45,23 @@ struct d {
 typedef struct symbol_name {
   union {
     struct {
-      enum symbol_type type   : 2;
-      uint16_t embed_len : 6;
-      uint8_t prev;
-      uint16_t len;
+//      enum symbol_type type   : 2;
+//      uint16_t embed_len : 6;
+//      uint8_t prev;
+//      uint16_t len;
+//      const char *name;
       const char *name;
+      uint16_t len;
+      char pad[sizeof(void*)-4];
+      uint8_t prev;
+      symbol_type type   : 2;
+      uint16_t embed_len : 6;
     };
     struct {
-      uint16_t padding;  /* space for `type`, `embed_len` and `prev` */
+//      uint16_t padding;  /* space for `type`, `embed_len` and `prev` */
+//      char embed_name[MRB_SYMBOL_EMBED_LEN_MAX];
       char embed_name[MRB_SYMBOL_EMBED_LEN_MAX];
+      uint16_t padding;  /* space for `type`, `embed_len` and `prev` */
     };
   };
 } symbol_name;
@@ -677,6 +685,7 @@ if (getenv("MY")) {
 //  p("offsetof(embed_len)", offsetof(symbol_name, embed_len));
   p("offsetof(prev)", offsetof(symbol_name, prev));
   p("offsetof(len)", offsetof(symbol_name, len));
+  p("offsetof(pad)", offsetof(symbol_name, pad));
   p("offsetof(name)", offsetof(symbol_name, name));
   p("offsetof(padding)", offsetof(symbol_name, padding));
   p("offsetof(embed_name)", offsetof(symbol_name, embed_name));
@@ -685,7 +694,7 @@ if (getenv("MY")) {
   p("offsetof(b.prev)", offsetof(struct b, prev));
   p("offsetof(c.prev)", offsetof(struct c, prev));
   p("offsetof(d.prev)", offsetof(struct d, prev));
-//  p("offsetof(ary)", offsetof(struct RStringEmbed, ary));
+  p("offsetof(ary)", offsetof(struct RStringEmbed, ary));
 }
 
   mrb->symbol_class = sym = mrb_define_class(mrb, "Symbol", mrb->object_class);  /* 15.2.11 */

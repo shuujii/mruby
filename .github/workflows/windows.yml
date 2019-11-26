@@ -10,17 +10,28 @@ jobs:
         vs: [2017]
       fail-fast: false
     steps:
-      - uses: actions/cache@v1
+#      - uses: actions/cache@v1
+#        with:
+#          path: C:\Users\runneradmin\AppData\Local\Temp\chocolatey
+#          key: ${{ runner.os }}-chocolatey-${{ matrix.os }}-${{ github.sha }}
+#          restore-keys: |
+#            ${{ runner.os }}-chocolatey-${{ matrix.os }}-
+#            ${{ runner.os }}-chocolatey-
+#      - name: Install libraries with chocolatey
+#        run: |
+#          choco config get cacheLocation
+#          choco install --no-progress winflexbison
+
+      - id: cache-chocolatey
+        uses: actions/cache@v1
         with:
           path: C:\Users\runneradmin\AppData\Local\Temp\chocolatey
-          key: ${{ runner.os }}-chocolatey-${{ matrix.os }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-chocolatey-${{ matrix.os }}-
-            ${{ runner.os }}-chocolatey-
+          key: ${{ runner.os }}-chocolatey-${{ matrix.os }}
       - name: Install libraries with chocolatey
+        if: steps.cache-chocolatey.outputs.cache-hit != 'true'
         run: |
-          choco config get cacheLocation
           choco install --no-progress winflexbison
+
       - uses: actions/checkout@v1
         with:
           fetch-depth: 1
