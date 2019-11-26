@@ -235,6 +235,16 @@ sym_intern(mrb_state *mrb, const char *name, size_t len, mrb_bool lit)
   }
   mrb->symhash[hash] = sym;
 
+{
+char type = sname->type == SYMBOL_TYPE_LITERAL ? 'L' :
+            sname->type == SYMBOL_TYPE_EMBED ? 'E' :
+            'A';
+fprintf(stderr, "%%%% type:%c, len:%2d, name:", type, (int)len);
+fwrite(name, 1, len, stderr);
+fputs("\n", stderr);
+fflush(stderr);
+}
+
   return sym<<SYMBOL_NORMAL_SHIFT;
 }
 
@@ -636,6 +646,11 @@ void
 mrb_init_symbol(mrb_state *mrb)
 {
   struct RClass *sym;
+
+#define p(name, size) fprintf(stderr, "## %21s:%zu\n", name, size);
+p("sizeof(symbol_name)", sizeof(symbol_name));
+p("offsetof(len)", offsetof(symbol_name, len));
+p("offsetof(embed_name)",offsetof(symbol_name,embed_name));
 
   mrb->symbol_class = sym = mrb_define_class(mrb, "Symbol", mrb->object_class);  /* 15.2.11 */
   MRB_SET_INSTANCE_TT(sym, MRB_TT_SYMBOL);
