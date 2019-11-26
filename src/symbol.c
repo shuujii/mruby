@@ -652,9 +652,14 @@ mrb_init_symbol(mrb_state *mrb)
 if (getenv("MY")) {
 # define p(name, size) fprintf(stderr, "## %21s:%zu\n", name, size);
   p("sizeof(symbol_name)", sizeof(symbol_name));
+//  p("offsetof(type)", offsetof(symbol_name, type));
+//  p("offsetof(embed_len)", offsetof(symbol_name, embed_len));
+  p("offsetof(prev)", offsetof(symbol_name, prev));
   p("offsetof(len)", offsetof(symbol_name, len));
+  p("offsetof(name)", offsetof(symbol_name, name));
+  p("offsetof(padding)", offsetof(symbol_name, padding));
   p("offsetof(embed_name)", offsetof(symbol_name, embed_name));
-  p("offsetof(ary)", offsetof(struct RStringEmbed, ary));
+//  p("offsetof(ary)", offsetof(struct RStringEmbed, ary));
 }
 
   mrb->symbol_class = sym = mrb_define_class(mrb, "Symbol", mrb->object_class);  /* 15.2.11 */
