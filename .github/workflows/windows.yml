@@ -49,14 +49,14 @@ jobs:
 #          tree /f /a C:\Users\runneradmin\AppData\Local\Temp\chocolatey
 #          dir C:\ProgramData\chocolatey\bin
 #      - name: Build
-      - name: Test
+      - name: Build and test
         shell: cmd
 #          set YACC=C:\ProgramData\chocolatey\lib\winflexbison\tools\win_bison
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\${{ matrix.vs }}\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           set YACC=win_bison
           set MRUBY_CONFIG=github_actions_config.rb
-          rake -E $stdout.sync=true test
+          rake -E $stdout.sync=true all test
       - name: Debug
         shell: cmd
         run: |
