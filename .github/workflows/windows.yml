@@ -8,12 +8,13 @@ jobs:
       matrix:
         os: [windows-2016]
         vs: [2017]
-      fail-fast: false
+#      fail-fast: false
     steps:
       - uses: actions/cache@v1
         with:
           path: C:\Users\runneradmin\AppData\Local\Temp\chocolatey
-          key: ${{ runner.os }}-chocolatey-${{ matrix.os }}-${{ github.sha }}
+#          key: ${{ runner.os }}-chocolatey-${{ matrix.os }}-${{ github.sha }}
+          key: ${{ runner.os }}-chocolatey-${{ matrix.os }}
           restore-keys: |
             ${{ runner.os }}-chocolatey-${{ matrix.os }}-
             ${{ runner.os }}-chocolatey-
@@ -35,4 +36,4 @@ jobs:
         shell: cmd
         run: |
           set MY=1
-          bin\mruby -e1
+          bin\mruby -ep:abcdef

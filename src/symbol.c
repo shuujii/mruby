@@ -237,15 +237,15 @@ sym_intern(mrb_state *mrb, const char *name, size_t len, mrb_bool lit)
   }
   mrb->symhash[hash] = sym;
 
-if (getenv("MY")) {
-  char type = sname->type == SYMBOL_TYPE_LITERAL ? 'L' :
-    sname->type == SYMBOL_TYPE_EMBED ? 'E' :
-    'A';
-  fprintf(stderr, "%%%% type:%c, len:%2d, name:", type, (int)len);
-  fwrite(name, 1, len, stderr);
-  fputs("\n", stderr);
-  fflush(stderr);
-}
+//if (getenv("MY")) {
+//  char type = sname->type == SYMBOL_TYPE_LITERAL ? 'L' :
+//    sname->type == SYMBOL_TYPE_EMBED ? 'E' :
+//    'A';
+//  fprintf(stderr, "%%%% type:%c, len:%2d, name:", type, (int)len);
+//  fwrite(name, 1, len, stderr);
+//  fputs("\n", stderr);
+//  fflush(stderr);
+//}
 
   return sym<<SYMBOL_NORMAL_SHIFT;
 }
@@ -653,7 +653,8 @@ if (getenv("MY")) {
 # define p(name, size) fprintf(stderr, "## %21s:%zu\n", name, size);
   p("sizeof(symbol_name)", sizeof(symbol_name));
   p("offsetof(len)", offsetof(symbol_name, len));
-  p("offsetof(embed_name)",offsetof(symbol_name,embed_name));
+  p("offsetof(embed_name)", offsetof(symbol_name, embed_name));
+  p("offsetof(ary)", offsetof(struct RStringEmbed, ary));
 }
 
   mrb->symbol_class = sym = mrb_define_class(mrb, "Symbol", mrb->object_class);  /* 15.2.11 */
