@@ -25,11 +25,14 @@ jobs:
         with:
           fetch-depth: 1
       - name: Build
+        shell: cmd
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\${{ matrix.vs }}\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           set YACC=win_bison
           set MRUBY_CONFIG=github_actions_config.rb
           rake --trace -E $stdout.sync=true
-        shell: cmd
       - name: Debug
-        run: bin/mruby -e1
+        shell: cmd
+        run: |
+          set MY=1
+          bin/mruby -e1
