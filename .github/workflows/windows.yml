@@ -6,8 +6,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [windws-latest]
+        os: [windows-2016]
         vs: [2017]
+      fail-fast: false
     steps:
       - uses: actions/cache@v1
         with:
