@@ -32,15 +32,18 @@ jobs:
         if: steps.cache-chocolatey.outputs.cache-hit != 'true'
         run: |
           choco install --no-progress winflexbison
-
       - uses: actions/checkout@v1
         with:
           fetch-depth: 1
+      - name: Tools
+        shell: cmd
+        run: dir C:\ProgramData\chocolatey\lib\winflexbison\tools
       - name: Build
         shell: cmd
         run: |
           call "C:\Program Files (x86)\Microsoft Visual Studio\${{ matrix.vs }}\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          set YACC=win_bison
+#          set YACC=win_bison
+          set YACC=C:\ProgramData\chocolatey\lib\winflexbison\tools\win_bison
           set MRUBY_CONFIG=github_actions_config.rb
           rake -E $stdout.sync=true
       - name: Debug
