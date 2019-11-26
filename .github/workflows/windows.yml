@@ -38,7 +38,7 @@ jobs:
       - name: Tools
         shell: cmd
         run: |
-          tree /f C:\ProgramData\chocolatey\lib\winflexbison\tools
+          type C:\ProgramData\chocolatey\logs\chocolatey.log
 #      - name: Build
 #        shell: cmd
 ##          set YACC=win_bison
