@@ -1,6 +1,9 @@
 name: Windows
 on:
   push
+#  push:
+#    branches:
+#      GitHubActions
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -27,15 +30,16 @@ jobs:
 #          choco config get cacheLocation
 #          choco install --no-progress winflexbison
 
-#      - id: cache-chocolatey
-#        uses: actions/cache@v1
-#        with:
-#          path: C:\ProgramData\chocolatey\lib\winflexbison\tools
-##          path: C:\Users\runneradmin\AppData\Local\Temp\chocolatey
+      - id: cache-chocolatey
+        uses: actions/cache@v1
+        with:
+          path: C:\ProgramData\chocolatey\lib\winflexbison\tools
+#          path: C:\Users\runneradmin\AppData\Local\Temp\chocolatey
 #          key: ${{ runner.os }}-chocolatey-${{ matrix.os }}
+          key: ${{ matrix.os }}-chocolatey-winflexbison
 
       - name: Install libraries with chocolatey
-#        if: steps.cache-chocolatey.outputs.cache-hit != 'true'
+        if: steps.cache-chocolatey.outputs.cache-hit != 'true'
         run: |
           choco install --no-progress winflexbison
 
@@ -56,7 +60,8 @@ jobs:
           call "C:\Program Files (x86)\Microsoft Visual Studio\${{ matrix.vs }}\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           set YACC=win_bison
           set MRUBY_CONFIG=github_actions_config.rb
-          rake -E $stdout.sync=true all test
+          rem rake -E $stdout.sync=true test
+          rake -E $stdout.sync=true
       - name: Debug
         shell: cmd
         run: |
