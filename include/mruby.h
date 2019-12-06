@@ -1355,6 +1355,56 @@ MRB_API void mrb_show_copyright(mrb_state *mrb);
 
 MRB_API mrb_value mrb_format(mrb_state *mrb, const char *format, ...);
 
+#ifndef MRB_ALLOCV_ON_STACK_MAX
+# define MRB_ALLOCV_ON_STACK_MAX 256
+#endif
+#if defined __clang__ && __clang_major__ >= 4 || \
+    defined __GNUC__ && __GNUC__ >= 4 && __GNUC_MINOR__ >= 7
+# define MRB_ALLOCV(mrb, type, var, n)                                  \
+  _MRB_ALLOCV(mrb, type, var, n,                                        \
+    __builtin_alloca_with_align(sizeof(type)*(n), __alignof__(type)*CHAR_BIT))
+#elif defined _WIN32
+# define MRB_ALLOCV(mrb, type, var, n) \
+  _MRB_ALLOCV(mrb, type, var, n, _malloca(sizeof(type)*(n)))
+#elif defined __STDC_NO_VLA__
+# define MRB_ALLOCV(mrb, type, var, n)                                         \
+  type _MRB_ALLOCV_ON_STACK_BUFFER(var)[MRB_ALLOCV_ON_STACK_MAX/sizeof(type)]; \
+  _MRB_ALLOCV(mrb, type, var, n, _MRB_ALLOCV_ON_STACK_BUFFER(var))
+#else
+# define MRB_ALLOCV(mrb, type, var, n)                                  \
+  type _MRB_ALLOCV_ON_STACK_BUFFER(var)[n];                             \
+  _MRB_ALLOCV(mrb, type, var, n, _MRB_ALLOCV_ON_STACK_BUFFER(var))
+#endif
+#define _MRB_ALLOCV(mrb, type, var, n, on_stack_expr)                   \
+  type *var = (type*)(MRB_ALLOCV_ON_STACK_MAX < sizeof(type)*(n) ?      \
+    mrb_alloca(mrb, sizeof(type)*(n)) : on_stack_expr)
+#define _MRB_ALLOCV_ON_STACK_BUFFER(var) mrb_allocv_on_stack_buffer_##var##__
+
+//#define MRB_ALLOCV(mrb, type, var, count)                                   \
+//  _MRB_ALLOCV_PREPARE(type, var, count);                                    \
+//  type *var = (type*)(MRB_ALLOCV_ON_STACK_MAX < sizeof(type)*count ?        \
+//    mrb_alloca(mrb, sizeof(type)*count) : _MRB_ALLOCV_ALLOCA(type, count))
+//#define _MRB_ALLOCV_ON_STACK_BUFFER_VAR(var) \
+//  mrb_allocv_on_stack_buffer_##var##__
+//#if defined __clang__ && __clang_major__ >= 4 || \
+//    defined __GNUC__ && __GNUC__ >= 4 && __GNUC_MINOR__ >= 7
+//# define _MRB_ALLOCV_PREPARE(type, var, count)
+//# define _MRB_ALLOCV_ALLOCA(type, count) \
+//  __builtin_alloca_with_align(sizeof(type)*count, __alignof__(type)*CHAR_BIT)
+//#elif defined _WIN32
+//# define _MRB_ALLOCV_PREPARE(type, var, count)
+//# define _MRB_ALLOCV_ALLOCA(type, count) \
+//  _malloca(sizeof(type)*count)
+//#elif defined __STDC_NO_VLA__
+//# define _MRB_ALLOCV_PREPARE(type, var, count) \
+//  type _MRB_ALLOCV_ON_STACK_BUFFER_VAR(var)[MRB_ALLOCV_ON_STACK_MAX/sizeof(type)]
+//# define _MRB_ALLOCV_ALLOCA(type, count) _MRB_ALLOCV_ON_STACK_BUFFER_VAR(var)
+//#else
+//# define _MRB_ALLOCV_PREPARE(type, var, count) \
+//  type _MRB_ALLOCV_ON_STACK_BUFFER_VAR(var)[count]
+//# define _MRB_ALLOCV_ALLOCA(type, count) _MRB_ALLOCV_ON_STACK_BUFFER_VAR(var)
+//#endif
+
 #if 0
 /* memcpy and memset does not work with gdb reverse-next on my box */
 /* use naive memcpy and memset instead */

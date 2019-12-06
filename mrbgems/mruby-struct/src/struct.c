@@ -1,3 +1,5 @@
+#define MY
+
 /*
 ** struct.c - Struct class
 **
@@ -123,6 +125,13 @@ mrb_struct_ref(mrb_state *mrb, mrb_value obj)
 static mrb_sym
 mrb_id_attrset(mrb_state *mrb, mrb_sym id)
 {
+#ifdef MY
+  mrb_int len;
+  mrb_sym mid;
+  const char *name = mrb_sym_name_len(mrb, id, &len);
+  MRB_ALLOCV(mrb, char, buf, len+1);
+
+#else // MY
 #define ONSTACK_ALLOC_MAX 32
 #define ONSTACK_STRLEN_MAX (ONSTACK_ALLOC_MAX - 1) /* '=' character */
 
@@ -139,13 +148,18 @@ mrb_id_attrset(mrb_state *mrb, mrb_sym id)
   else {
     buf = onstack;
   }
+#endif // MY
   memcpy(buf, name, (size_t)len);
   buf[len] = '=';
 
   mid = mrb_intern(mrb, buf, len+1);
+#ifdef MY
+#else // MY
   if (buf != onstack) {
     mrb_free(mrb, buf);
   }
+#endif // MY
+
   return mid;
 }
 

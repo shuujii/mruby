@@ -1,3 +1,5 @@
+#define MY
+
 /*
 ** class.c - Class class
 **
@@ -1407,6 +1409,34 @@ mrb_method_search(mrb_state *mrb, struct RClass* c, mrb_sym mid)
   return m;
 }
 
+#ifdef MY
+static mrb_sym
+prepare_name_common(mrb_state *mrb, mrb_sym sym, const char *prefix, const char *suffix)
+{
+  mrb_int sym_len;
+  const char *sym_str = mrb_sym_name_len(mrb, sym, &sym_len);
+  size_t prefix_len = prefix ? strlen(prefix) : 0;
+  size_t suffix_len = suffix ? strlen(suffix) : 0;
+  size_t name_len = sym_len + prefix_len + suffix_len;
+  MRB_ALLOCV(mrb, char, buf, name_len);
+  char *p = buf;
+
+  if (prefix_len > 0) {
+    memcpy(p, prefix, prefix_len);
+    p += prefix_len;
+  }
+
+  memcpy(p, sym_str, sym_len);
+  p += sym_len;
+
+  if (suffix_len > 0) {
+    memcpy(p, suffix, suffix_len);
+    p += suffix_len;
+  }
+
+  return mrb_intern(mrb, buf, name_len);
+}
+#else // MY
 #define ONSTACK_ALLOC_MAX 32
 
 static mrb_sym
@@ -1436,6 +1466,7 @@ prepare_name_common(mrb_state *mrb, mrb_sym sym, const char *prefix, const char 
 
   return mrb_intern(mrb, buf, name_len);
 }
+#endif // MY
 
 static mrb_value
 prepare_ivar_name(mrb_state *mrb, mrb_sym sym)
