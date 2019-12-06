@@ -1358,6 +1358,12 @@ MRB_API mrb_value mrb_format(mrb_state *mrb, const char *format, ...);
 #ifndef MRB_ALLOCV_ON_STACK_MAX
 # define MRB_ALLOCV_ON_STACK_MAX 256
 #endif
+#ifdef _WIN32
+# include <malloc.h>
+# if MRB_ALLOCV_ON_STACK_MAX > _ALLOCA_S_THRESHOLD
+#  define MRB_ALLOCV_ON_STACK_MAX _ALLOCA_S_THRESHOLD
+# endif
+#endif
 #if defined __clang__ && __clang_major__ >= 4 || \
     defined __GNUC__ && __GNUC__ >= 4 && __GNUC_MINOR__ >= 7
 # define MRB_ALLOCV(mrb, type, var, n)                                  \
@@ -1365,7 +1371,7 @@ MRB_API mrb_value mrb_format(mrb_state *mrb, const char *format, ...);
     __builtin_alloca_with_align(sizeof(type)*(n), __alignof__(type)*CHAR_BIT))
 #elif defined _WIN32
 # define MRB_ALLOCV(mrb, type, var, n) \
-  _MRB_ALLOCV(mrb, type, var, n, _malloca(sizeof(type)*(n)))
+  _MRB_ALLOCV(mrb, type, var, n, _alloca(sizeof(type)*(n)))
 #elif defined __STDC_NO_VLA__
 # define MRB_ALLOCV(mrb, type, var, n)                                         \
   type _MRB_ALLOCV_ON_STACK_BUFFER(var)[MRB_ALLOCV_ON_STACK_MAX/sizeof(type)]; \
