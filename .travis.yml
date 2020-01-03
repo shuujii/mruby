@@ -11,4 +11,11 @@ matrix:
 
 env:
   - MRUBY_CONFIG=travis_config.rb
-script: "rake -m && rake test"
+
+script:
+  - rake -m
+  - rake test
+
+if: branch = master
+on_success: always
+on_failure: always
