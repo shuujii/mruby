@@ -1,13 +1,20 @@
 version: "{build}"
 
+branches:
+  only:
+    - master
+  notifications:
+    - provider: Email
+      on_build_success: false
+      on_build_failure: true
+      on_build_status_changed: true
+
 os: Visual Studio 2017
 
 shallow_clone: true
 
-
 cache:
   - win_flex_bison
-
 
 environment:
   matrix:
@@ -22,13 +29,11 @@ environment:
     - visualcpp: C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\vcvarsall.bat
       machine: amd64
 
-
 init:
   - call "%visualcpp%" %machine%
   # For using Rubyinstaller's Ruby 2.4 64bit
   - set PATH=C:\Ruby24-x64\bin;%PATH%
   - ruby --version
-
 
 install:
   - if not exist win_flex_bison (
