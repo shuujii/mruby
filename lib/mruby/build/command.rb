@@ -339,7 +339,7 @@ module MRuby
       @command ||= @build.mrbcfile
       infiles = [infiles].flatten
       infiles.each do |f|
-        _pp "MRBC", f.relative_path, nil, :indent => 2
+        _pp "MRBC", f.relative_path, indent: 2
       end
       cmd = "#{filename @command} #{@compile_options % {:funcname => funcname}} #{filename(infiles).join(' ')}"
       puts cmd if Rake.verbose
