@@ -21,8 +21,6 @@ class String
 end
 
 def _pp(cmd, src, tgt=nil, options={})
-  return if Rake.verbose
-
   width = 5
   template = options[:indent] ? "%#{width*options[:indent]}s %s %s" : "%-#{width}s %s %s"
   puts template % [cmd, src, tgt ? "-> #{tgt}" : nil]
