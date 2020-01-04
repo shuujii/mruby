@@ -25,12 +25,9 @@ end
 # load custom rules
 load "#{MRUBY_ROOT}/tasks/core.rake"
 load "#{MRUBY_ROOT}/tasks/mrblib.rake"
-
 load "#{MRUBY_ROOT}/tasks/mrbgems.rake"
 load "#{MRUBY_ROOT}/tasks/libmruby.rake"
-
 load "#{MRUBY_ROOT}/tasks/benchmark.rake"
-
 load "#{MRUBY_ROOT}/tasks/gitlab.rake"
 load "#{MRUBY_ROOT}/tasks/doc.rake"
 
