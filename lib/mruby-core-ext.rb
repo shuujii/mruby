@@ -20,6 +20,20 @@ class String
   end
 end
 
+def shellquote(s)
+  if ENV['OS'] == 'Windows_NT'
+    "\"#{s}\""
+  else
+    "#{s}"
+  end
+end
+
+def install_D(src, dst)
+  rm_f dst
+  mkdir_p File.dirname(dst)
+  cp src, dst
+end
+
 def _pp(cmd, src, tgt=nil, indent: nil)
   width = 5
   template = indent ? "%#{width * indent}s %s %s" : "%-#{width}s %s %s"

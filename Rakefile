@@ -34,12 +34,6 @@ load "#{MRUBY_ROOT}/tasks/benchmark.rake"
 load "#{MRUBY_ROOT}/tasks/gitlab.rake"
 load "#{MRUBY_ROOT}/tasks/doc.rake"
 
-def install_D(src, dst)
-  rm_f dst
-  mkdir_p File.dirname(dst)
-  cp src, dst
-end
-
 ##############################
 # generic build targets, rules
 task :default => :all

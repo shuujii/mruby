@@ -54,14 +54,6 @@ module MRuby
                   end
     end
 
-    def shellquote(s)
-      if ENV['OS'] == 'Windows_NT'
-        "\"#{s}\""
-      else
-        "'#{s}'"
-      end
-    end
-
     def mruby
       mruby = {
         'version' => MRuby::Source::MRUBY_VERSION,

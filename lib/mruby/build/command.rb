@@ -24,14 +24,6 @@ module MRuby
       target
     end
 
-    def shellquote(s)
-      if ENV['OS'] == 'Windows_NT'
-        "\"#{s}\""
-      else
-        "#{s}"
-      end
-    end
-
     NotFoundCommands = {}
 
     private
