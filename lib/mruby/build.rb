@@ -44,7 +44,7 @@ module MRuby
     include LoadGems
     attr_accessor :name, :bins, :exts, :file_separator, :build_dir, :gem_clone_dir
     attr_reader :libmruby_objs, :gems, :toolchains, :gem_dir_to_repo_url
-    attr_writer :enable_bintest, :enable_test
+    attr_writer :enable_bintest, :enable_test, :mrbcfile
 
     alias libmruby libmruby_objs
 
