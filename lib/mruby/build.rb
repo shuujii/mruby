@@ -44,7 +44,7 @@ module MRuby
     include LoadGems
     attr_accessor :name, :bins, :exts, :file_separator, :build_dir, :gem_clone_dir
     attr_reader :libmruby_objs, :gems, :toolchains, :gem_dir_to_repo_url
-    attr_writer :enable_bintest, :enable_test, :mrbcfile
+    attr_writer :enable_bintest, :enable_test
 
     alias libmruby libmruby_objs
 
@@ -89,6 +89,7 @@ module MRuby
         @enable_bintest = false
         @enable_test = false
         @enable_lock = true
+        @default_mrbcfile = true
         @toolchains = []
         @gem_dir_to_repo_url = {}
 
@@ -98,7 +99,7 @@ module MRuby
       MRuby::Build.current = MRuby.targets[@name]
       MRuby.targets[@name].instance_eval(&block)
 
-      build_mrbc_exec if name == 'host'
+      build_mrbc_exec if @default_mrbcfile && name == 'host'
       build_mrbtest if test_enabled?
     end
 
@@ -249,6 +250,11 @@ EOS
       mrbc_build = MRuby.targets['host']
       gems.each { |v| mrbc_build = self if v.name == 'mruby-bin-mrbc' }
       @mrbcfile = mrbc_build.exefile("#{mrbc_build.build_dir}/bin/mrbc")
+    end
+
+    def mrbcfile=(path)
+      @mrbcfile = path
+      @default_mrbcfile = false
     end
 
     def compilers

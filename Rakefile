@@ -36,11 +36,10 @@ load "#{MRUBY_ROOT}/tasks/doc.rake"
 task :default => :all
 
 bin_path = ENV['INSTALL_DIR'] || "#{MRUBY_ROOT}/bin"
-main_target = MRuby.targets['host'] || MRuby.targets.first[1]
 
-depfiles = main_target.bins.map do |bin|
-  install_path = main_target.exefile("#{bin_path}/#{bin}")
-  source_path = main_target.exefile("#{main_target.build_dir}/bin/#{bin}")
+depfiles = MRuby.targets['host'].bins.map do |bin|
+  install_path = MRuby.targets['host'].exefile("#{bin_path}/#{bin}")
+  source_path = MRuby.targets['host'].exefile("#{MRuby.targets['host'].build_dir}/bin/#{bin}")
 
   file install_path => source_path do |t|
     install_D t.prerequisites.first, t.name
@@ -72,15 +71,15 @@ MRuby.each_target do |target|
         linker.run t.name, t.prerequisites, gem_libraries, gem_library_paths, gem_flags, gem_flags_before_libraries, gem_flags_after_libraries
       end
 
-      if target == main_target
-        install_path = main_target.exefile("#{bin_path}/#{bin}")
+      if target == MRuby.targets['host']
+        install_path = MRuby.targets['host'].exefile("#{bin_path}/#{bin}")
 
         file install_path => exec do |t|
           install_D t.prerequisites.first, t.name
         end
         depfiles += [ install_path ]
       elsif target == MRuby.targets['host-debug']
-        unless main_target.gems.map {|g| g.bins}.include?([bin])
+        unless MRuby.targets['host'].gems.map {|g| g.bins}.include?([bin])
           install_path = MRuby.targets['host-debug'].exefile("#{bin_path}/#{bin}")
 
           file install_path => exec do |t|
