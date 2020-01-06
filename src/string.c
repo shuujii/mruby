@@ -576,12 +576,9 @@ str_share(mrb_state *mrb, struct RString *orig, struct RString *s)
 }
 
 mrb_value
-mrb_str_pool(mrb_state *mrb, mrb_value str)
+mrb_str_pool(mrb_state *mrb, const char *p, mrb_int len, mrb_bool nofree)
 {
   struct RString *s = (struct RString *)mrb_malloc(mrb, sizeof(struct RString));
-  struct RString *orig = mrb_str_ptr(str);
-  const char *p = RSTR_PTR(orig);
-  size_t len = (size_t)RSTR_LEN(orig);
 
   s->tt = MRB_TT_STRING;
   s->c = mrb->string_class;
@@ -590,7 +587,7 @@ mrb_str_pool(mrb_state *mrb, mrb_value str)
   if (RSTR_EMBEDDABLE_P(len)) {
     str_init_embed(s, p, len);
   }
-  else if (RSTR_NOFREE_P(orig)) {
+  else if (nofree) {
     str_init_nofree(s, p, len);
   }
   else {
@@ -2242,7 +2239,7 @@ mrb_str_split_m(mrb_state *mrb, mrb_value str)
   return result;
 }
 
-static mrb_value
+mrb_value
 mrb_str_len_to_inum(mrb_state *mrb, const char *str, mrb_int len, mrb_int base, int badcheck)
 {
   const char *p = str;
@@ -2491,20 +2488,65 @@ mrb_str_to_i(mrb_state *mrb, mrb_value self)
 }
 
 #ifndef MRB_WITHOUT_FLOAT
-MRB_API double
-mrb_cstr_to_dbl(mrb_state *mrb, const char * s, mrb_bool badcheck)
+double
+mrb_str_len_to_dbl(mrb_state *mrb, const char *s, size_t len, mrb_bool badcheck)
 {
-  const char *p = s;
-  char *end;
   char buf[DBL_DIG * 4 + 10];
+  const char *p;
+  const char *pend = s + len;
+  char *end;
+  char *n;
+  char prev = 0;
   double d;
 
-  if (!p) return 0.0;
-  while (ISSPACE(*p)) p++;
+  if (!s) return 0.0;
+  while (ISSPACE(*s)) s++;
+  p = s;
 
-  if (!badcheck && p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) {
-    return 0.0;
+  if (p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) {
+    mrb_value x;
+
+    x = mrb_str_len_to_inum(mrb, p, pend-p, 0, badcheck);
+    if (mrb_fixnum_p(x))
+      d = (double)mrb_fixnum(x);
+    else /* if (mrb_float_p(x)) */
+      d = mrb_float(x);
+    return d;
   }
+  while (p < pend) {
+    if (!*p) {
+      if (badcheck && p < pend) {
+        mrb_raise(mrb, E_ARGUMENT_ERROR, "string for Float contains null byte");
+        /* not reached */
+      }
+      pend = p;
+      p = s;
+      goto nocopy;
+    }
+    if (*p == '_') break;
+    p++;
+  }
+  p = s;
+  n = buf;
+  while (p < pend) {
+    char c = *p++;
+    if (c == '_') {
+      /* remove an underscore between digits */
+      if (n == buf || !ISDIGIT(prev) || p == pend) {
+        if (badcheck) goto bad;
+        break;
+      }
+    }
+    else if (badcheck && prev == '_' && !ISDIGIT(c)) goto bad;
+    else {
+      *n++ = c;
+    }
+    prev = c;
+  }
+  *n = '\0';
+  p = buf;
+  pend = n;
+nocopy:
   d = mrb_float_read(p, &end);
   if (p == end) {
     if (badcheck) {
@@ -2514,44 +2556,24 @@ bad:
     }
     return d;
   }
-  if (*end) {
-    char *n = buf;
-    char *e = buf + sizeof(buf) - 1;
-    char prev = 0;
-
-    while (p < end && n < e) prev = *n++ = *p++;
-    while (*p) {
-      if (*p == '_') {
-        /* remove an underscore between digits */
-        if (n == buf || !ISDIGIT(prev) || (++p, !ISDIGIT(*p))) {
-          if (badcheck) goto bad;
-          break;
-        }
-      }
-      prev = *p++;
-      if (n < e) *n++ = prev;
-    }
-    *n = '\0';
-    p = buf;
-
-    if (!badcheck && p[0] == '0' && (p[1] == 'x' || p[1] == 'X')) {
-      return 0.0;
-    }
-
-    d = mrb_float_read(p, &end);
-    if (badcheck) {
-      if (!end || p == end) goto bad;
-      while (*end && ISSPACE(*end)) end++;
-      if (*end) goto bad;
-    }
+  if (badcheck) {
+    if (!end || p == end) goto bad;
+    while (end<pend && ISSPACE(*end)) end++;
+    if (end<pend) goto bad;
   }
   return d;
 }
 
 MRB_API double
+mrb_cstr_to_dbl(mrb_state *mrb, const char *s, mrb_bool badcheck)
+{
+  return mrb_str_len_to_dbl(mrb, s, strlen(s), badcheck);
+}
+
+MRB_API double
 mrb_str_to_dbl(mrb_state *mrb, mrb_value str, mrb_bool badcheck)
 {
-  return mrb_cstr_to_dbl(mrb, RSTRING_CSTR(mrb, str), badcheck);
+  return mrb_str_len_to_dbl(mrb, RSTRING_PTR(str), RSTRING_LEN(str), badcheck);
 }
 
 /* 15.2.10.5.39 */
