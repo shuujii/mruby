@@ -99,9 +99,11 @@ MRuby.each_target do |t|
       gem = t.gem(core: 'mruby-test')
       gem.setup
       gem.setup_compilers
-      bin = "#{t.build_dir}/bin/mrbtest"
+      bin = t.exefile("#{t.build_dir}/bin/mrbtest")
       Rake::Task[bin].invoke
-      install_D bin, "#{MRUBY_INSTALL_DIR}/mrbtest" if t == MRuby.main_target
+      if t == MRuby.main_target
+        install_D bin, "#{MRUBY_INSTALL_DIR}/#{File.basename(bin)}"
+      end
       t.run_test
     end
   end
