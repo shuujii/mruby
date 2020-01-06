@@ -162,6 +162,43 @@ module MRuby
         end
       end
 
+      def define_builder(linker_libraries, linker_library_paths, linker_flags,
+                         linker_flags_before_libraries, linker_flags_after_libraries)
+        current_dir = dir.relative_path_from(Dir.pwd)
+        relative_from_root = dir.relative_path_from(MRUBY_ROOT)
+        current_build_dir = File.expand_path "#{build.build_dir}/#{relative_from_root}"
+        bins.map do |bin|
+          exec = build.exefile("#{build.build_dir}/bin/#{bin}")
+          objs = Dir["#{current_dir}/tools/#{bin}/*.{c,cpp,cxx,cc}"].map do |f|
+            build.objfile(f.pathmap("#{current_build_dir}/tools/#{bin}/%n"))
+          end
+
+          file exec => objs + build.libraries do |t|
+            build.linker.run t.name, t.prerequisites,
+              linker_libraries, linker_library_paths, linker_flags,
+              linker_flags_before_libraries, linker_flags_after_libraries
+          end
+
+          if build == MRuby.main_target
+            install_path = build.exefile("#{MRUBY_INSTALL_DIR}/#{bin}")
+            file install_path => exec do |t|
+              install_D t.prerequisites.first, t.name
+            end
+            install_path
+          elsif build.name == 'host-debug'
+            unless MRuby.targets['host'].gems.map{|g| g.bins}.include?([bin])
+              install_path = build.exefile("#{MRUBY_INSTALL_DIR}/#{bin}")
+              file install_path => exec do |t|
+                install_D t.prerequisites.first, t.name
+              end
+              install_path
+            end
+          else
+            exec
+          end
+        end
+      end
+
       def generate_gem_init(fname)
         open(fname, 'w') do |f|
           print_gem_init_header f
