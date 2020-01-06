@@ -1,3 +1,4 @@
+require 'tempfile'
 require 'open3'
 
 assert('mirb normal operations') do
