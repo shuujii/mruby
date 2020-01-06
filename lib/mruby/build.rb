@@ -7,6 +7,8 @@ module MRuby
   autoload :Lockfile, "mruby/lockfile"
 
   class << self
+    attr_accessor :main_target
+
     def targets
       @targets ||= {}
     end
@@ -89,17 +91,18 @@ module MRuby
         @enable_bintest = false
         @enable_test = false
         @enable_lock = true
-        @default_mrbcfile = true
+        @external_mrbcfile = false
         @toolchains = []
         @gem_dir_to_repo_url = {}
 
+        MRuby.main_target = self if MRuby.targets.empty? || name == 'host'
         MRuby.targets[@name] = self
       end
 
       MRuby::Build.current = MRuby.targets[@name]
       MRuby.targets[@name].instance_eval(&block)
 
-      build_mrbc_exec if @default_mrbcfile && name == 'host'
+      build_mrbc_exec if !@external_mrbcfile && name == 'host'
       build_mrbtest if test_enabled?
     end
 
@@ -254,7 +257,7 @@ EOS
 
     def mrbcfile=(path)
       @mrbcfile = path
-      @default_mrbcfile = false
+      @external_mrbcfile = true
     end
 
     def compilers
