@@ -16,6 +16,7 @@ unless MRuby::Build.current.kind_of?(MRuby::CrossBuild)
         l.gsub('\\"', '"').split(' = ', 2).map! {|s| s.sub(/^(?=.)/, 'echo ')}
       }]
       tmplt = File.read(tmplt_path)
+      mkdir_p(File.dirname(t.name))
       File.write(t.name, tmplt.gsub(/(#{Regexp.union(*config.keys)})\b/, config))
       chmod(0755, t.name)
     end
