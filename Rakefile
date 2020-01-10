@@ -96,21 +96,23 @@ end
 MRuby.each_target do |t|
   if t.test_enabled?
     task "test:lib:#{t.name}" => :all do
-      gem = t.gem(core: 'mruby-test')
-      gem.setup
-      gem.setup_compilers
-      bin = t.exefile("#{t.build_dir}/bin/mrbtest")
-      Rake::Task[bin].invoke
-      if t == MRuby.main_target
-        install_D bin, "#{MRUBY_INSTALL_DIR}/#{File.basename(bin)}"
+      no_multitask do
+        gem = t.gem(core: 'mruby-test')
+        gem.setup
+        gem.setup_compilers
+        bin = t.exefile("#{t.build_dir}/bin/mrbtest")
+        Rake::Task[bin].invoke
+        if t == MRuby.main_target
+          install_D bin, "#{MRUBY_INSTALL_DIR}/#{File.basename(bin)}"
+        end
+        t.run_test
       end
-      t.run_test
     end
   end
 
   if t.bintest_enabled?
     task "test:bin:#{t.name}" => :all do
-      t.run_bintest
+      no_multitask {t.run_bintest}
     end
   end
 end
