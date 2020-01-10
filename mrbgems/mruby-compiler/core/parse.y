@@ -839,8 +839,6 @@ setup_numparams(parser_state *p, node *a)
 {
   int nvars = intn(p->nvars->car);
   if (nvars > 0) {
-    int i;
-    mrb_sym sym;
     // m || opt || rest || tail
     if (a && (a->car || (a->cdr && a->cdr->car) || (a->cdr->cdr && a->cdr->cdr->car) || (a->cdr->cdr->cdr->cdr && a->cdr->cdr->cdr->cdr->car))) {
       yyerror(p, "ordinary parameter is defined");
@@ -848,13 +846,10 @@ setup_numparams(parser_state *p, node *a)
     else if (p->locals) {
       /* p->locals should not be NULL unless error happens before the point */
       node* args = 0;
+      int i;
       for (i = nvars; i > 0; i--) {
-        char buf[3];
-
-        buf[0] = '_';
-        buf[1] = i+'0';
-        buf[2] = '\0';
-        sym = intern_cstr(buf);
+        char buf[] = {'_', i+'0'};
+        mrb_sym sym = intern(buf, sizeof(buf));
         args = cons(new_arg(p, sym), args);
         p->locals->car = cons(nsym(sym), p->locals->car);
       }
