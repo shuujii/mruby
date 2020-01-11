@@ -338,11 +338,13 @@ module MRuby
       IO.popen(cmd, 'r+') do |io|
         out.puts io.read
       end
-      # if mrbc execution fail, drop the file
-      if $?.exitstatus != 0
-        File.delete(out.path)
-        exit(-1)
+      unless $?.success?
+        fail "Command failed with status (#{$?.exitstatus}): [#{cmd[0,42]}...]"
       end
+    rescue Exception
+      # if mrbc execution fail, drop the file
+      rm out.path
+      raise
     end
   end
 
