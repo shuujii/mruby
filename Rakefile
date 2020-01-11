@@ -19,7 +19,7 @@ MRUBY_CONFIG = (ENV['MRUBY_CONFIG'] && ENV['MRUBY_CONFIG'] != '') ? ENV['MRUBY_C
 load MRUBY_CONFIG
 
 # load basic rules
-MRuby.each_target {|t| t.define_rules}
+MRuby.each_target {|build| build.define_rules}
 
 # load custom rules
 load "#{MRUBY_ROOT}/tasks/core.rake"
@@ -42,8 +42,8 @@ depfiles = MRuby.main_target.bins.map do |bin|
 end
 
 linker_args = Array.new(5){[]}
-MRuby.each_target do |t|
-  t.gems.each do |gem|
+MRuby.each_target do |build|
+  build.gems.each do |gem|
     linker_args[0] << gem.linker.libraries
     linker_args[1] << gem.linker.library_paths
     linker_args[2] << gem.linker.flags
@@ -51,11 +51,13 @@ MRuby.each_target do |t|
     linker_args[4] << gem.linker.flags_after_libraries
   end
 end
-MRuby.each_target do |t|
-  t.gems.each {|gem| depfiles << gem.define_builder(*linker_args)}
-  depfiles << t.libraries
-  unless t == MRuby.main_target
-    t.bins.each {|bin| depfiles << t.exefile("#{t.build_dir}/bin/#{bin}")}
+MRuby.each_target do |build|
+  build.gems.each {|gem| depfiles << gem.define_builder(*linker_args)}
+  depfiles << build.libraries
+  unless build == MRuby.main_target
+    build.bins.each do |bin|
+      depfiles << build.exefile("#{build.build_dir}/bin/#{bin}")
+    end
   end
 end
 depfiles.flatten!
@@ -67,15 +69,15 @@ task :all => depfiles do
   puts
   puts "Build summary:"
   puts
-  MRuby.each_target {|t| t.print_build_summary}
+  MRuby.each_target {|build| build.print_build_summary}
   MRuby::Lockfile.write
 end
 
 desc "run all mruby tests"
 task :test => :all do
-  MRuby.each_target do |t|
+  MRuby.each_target do |build|
     %w[lib bin].each do |k|
-      n = "test:#{k}:#{t.name}"
+      n = "test:#{k}:#{build.name}"
       Rake::Task[n].invoke if Rake::Task.task_defined?(n)
     end
   end
@@ -85,41 +87,41 @@ namespace :test do
   {lib: "run libmruby tests", bin: "run command binaries tests"}.each do |k, d|
     desc d
     task k do
-      MRuby.each_target do |t|
-        n = "test:#{k}:#{t.name}"
+      MRuby.each_target do |build|
+        n = "test:#{k}:#{build.name}"
         Rake::Task[n].invoke if Rake::Task.task_defined?(n)
       end
     end
   end
 end
 
-MRuby.each_target do |t|
-  if t.test_enabled?
-    task "test:lib:#{t.name}" => :all do
+MRuby.each_target do |build|
+  if build.test_enabled?
+    task "test:lib:#{build.name}" => :all do
       no_multitask do
-        gem = t.gem(core: 'mruby-test')
+        gem = build.gem(core: 'mruby-test')
         gem.setup
         gem.setup_compilers
-        bin = t.exefile("#{t.build_dir}/bin/mrbtest")
+        bin = build.exefile("#{build.build_dir}/bin/mrbtest")
         Rake::Task[bin].invoke
-        if t == MRuby.main_target
+        if build == MRuby.main_target
           install_D bin, "#{MRUBY_INSTALL_DIR}/#{File.basename(bin)}"
         end
-        t.run_test
+        build.run_test
       end
     end
   end
 
-  if t.bintest_enabled?
-    task "test:bin:#{t.name}" => :all do
-      no_multitask {t.run_bintest}
+  if build.bintest_enabled?
+    task "test:bin:#{build.name}" => :all do
+      no_multitask {build.run_bintest}
     end
   end
 end
 
 desc "clean all built and in-repo installed artifacts"
 task :clean do
-  MRuby.each_target {|t| rm_rf t.build_dir}
+  MRuby.each_target {|build| rm_rf build.build_dir}
   rm_f depfiles
   rm_f "#{MRUBY_INSTALL_DIR}/bin/mrbtest" if MRuby.main_target.test_enabled?
   puts "Cleaned up target build folder"
@@ -127,6 +129,6 @@ end
 
 desc "clean everything!"
 task :deep_clean => %w[clean doc:clean] do
-  MRuby.each_target {|t| rm_rf t.gem_clone_dir}
+  MRuby.each_target {|build| rm_rf build.gem_clone_dir}
   puts "Cleaned up mrbgems build folder"
 end
