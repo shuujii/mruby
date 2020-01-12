@@ -34,7 +34,7 @@ def shellquote(s)
   if ENV['OS'] == 'Windows_NT'
     "\"#{s}\""
   else
-    "#{s}"
+    "'#{s}'"
   end
 end
 
