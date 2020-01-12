@@ -11,7 +11,7 @@ MRuby.each_target do |build|
     File.open(mrblib_c, 'w') do |f|
       _pp "GEN", "*.rb", "#{mrblib_c.relative_path}"
       f.puts File.read("mrblib/init_mrblib.c")
-      build.mrbc.run f, rbfiles, 'mrblib_irep'
+      build.mrbc.run f, rbfiles, "'static mrblib_irep'"
     end
   end
 end
