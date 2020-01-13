@@ -106,13 +106,13 @@ MRuby.each_target do |build|
       if build == MRuby.main_target
         install_D bin, "#{MRUBY_INSTALL_DIR}/#{File.basename(bin)}"
       end
-      no_multitask {build.run_test}
+      build.run_test
     end
   end
 
   if build.bintest_enabled?
     task "test:bin:#{build.name}" => :all do
-      no_multitask {build.run_bintest}
+      build.run_bintest
     end
   end
 end

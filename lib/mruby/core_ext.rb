@@ -20,15 +20,6 @@ class String
   end
 end
 
-def no_multitask(&block)
-  opts = Rake.application.options
-  multitask, opts.always_multitask = opts.always_multitask, false
-  begin
-    block.call
-  ensure
-    opts.always_multitask = multitask
-  end
-end
 
 def shellquote(s)
   if ENV['OS'] == 'Windows_NT'
