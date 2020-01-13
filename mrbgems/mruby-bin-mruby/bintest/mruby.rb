@@ -1,7 +1,7 @@
 require 'tempfile'
 require 'open3'
 
-def assert_mruby(exp_out, exp_err, exp_success, args)
+def assert_mruby(exp_out, exp_err="", exp_success=true, args)
   out, err, stat = Open3.capture3(cmd("mruby"), *args)
   assert "assert_mruby" do
     assert_operator(exp_out, :===, out, "standard output")
@@ -27,16 +27,16 @@ assert '$0 value' do
   script, bin = Tempfile.new('test.rb'), Tempfile.new('test.mrb')
 
   # .rb script
-  script.write "p $0\n"
+  script.write "p $0"
   script.flush
-  assert_equal "\"#{script.path}\"", `#{cmd('mruby')} "#{script.path}"`.chomp
+  assert_mruby(%|"#{script.path}"\n|, [script.path])
 
   # .mrb file
-  `#{cmd('mrbc')} -o "#{bin.path}" "#{script.path}"`
-  assert_equal "\"#{bin.path}\"", `#{cmd('mruby')} -b "#{bin.path}"`.chomp
+  system cmd('mrbc'), "-o", bin.path, script.path
+  assert_mruby(%|"#{bin.path}"\n|, ["-b", bin.path])
 
   # one liner
-  assert_equal '"-e"', `#{cmd('mruby')} -e #{shellquote('p $0')}`.chomp
+  assert_mruby(%|"-e"\n|, ["-e", "p $0"])
 end
 
 assert 'ARGV value' do
@@ -53,27 +53,25 @@ end
 
 assert '__END__', '8.6' do
   script = Tempfile.new('test.rb')
-
-  script.write <<EOS
+  script.write <<-EOS
 p 'test'
   __END__ = 'fin'
 p __END__
 __END__
 p 'legend'
-EOS
+  EOS
   script.flush
   assert_equal "\"test\"\n\"fin\"\n", `#{cmd('mruby')} #{script.path}`
 end
 
 assert('garbage collecting built-in classes') do
   script = Tempfile.new('test.rb')
-
-  script.write <<RUBY
+  script.write <<-EOS
 NilClass = nil
 GC.start
 Array.dup
 print nil.class.to_s
-RUBY
+  EOS
   script.flush
   assert_equal "NilClass", `#{cmd('mruby')} #{script.path}`
   assert_equal 0, $?.exitstatus
@@ -99,25 +97,22 @@ end
 
 assert('mruby -r option') do
   lib = Tempfile.new('lib.rb')
-  lib.write <<EOS
+  lib.write <<-EOS
 class Hoge
   def hoge
     :hoge
   end
 end
-EOS
+  EOS
   lib.flush
-
   script = Tempfile.new('test.rb')
-  script.write <<EOS
+  script.write <<-EOS
 print Hoge.new.hoge
-EOS
+  EOS
   script.flush
-  assert_equal 'hoge', `#{cmd('mruby')} -r #{lib.path} #{script.path}`
-  assert_equal 0, $?.exitstatus
-
-  assert_equal 'hogeClass', `#{cmd('mruby')} -r #{lib.path} -r #{script.path} -e #{shellquote('print Hoge.class')}`
-  assert_equal 0, $?.exitstatus
+  assert_mruby("hoge", ["-r", lib.path, script.path])
+  assert_mruby("hogeClass",
+               ["-r", lib.path, "-r", script.path, "-e", "print Hoge.class"])
 end
 
 assert('mruby -r option (no library specified)') do

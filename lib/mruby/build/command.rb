@@ -286,35 +286,35 @@ module MRuby
 
     def run_clone(dir, url, _flags = [])
       _pp "GIT", url, dir.relative_path
-      _run clone_options, { :flags => [flags, _flags].flatten.join(' '), :url => shellquote(url), :dir => shellquote(filename(dir)) }
+      _run clone_options, { :flags => [flags, _flags].flatten.join(' '), :url => url, :dir => filename(dir) }
     end
 
     def run_pull(dir, url)
       _pp "GIT PULL", url, dir.relative_path
-      _run pull_options, { :repo_dir => shellquote(dir) }
+      _run pull_options, { :repo_dir => dir }
     end
 
     def run_checkout(dir, checksum_hash)
       _pp "GIT CHECKOUT", dir, checksum_hash
-      _run checkout_options, { :checksum_hash => checksum_hash, :repo_dir => shellquote(dir) }
+      _run checkout_options, { :checksum_hash => checksum_hash, :repo_dir => dir }
     end
 
     def run_checkout_detach(dir, checksum_hash)
       _pp "GIT CHECKOUT DETACH", dir, checksum_hash
-      _run checkout_detach_options, { :checksum_hash => checksum_hash, :repo_dir => shellquote(dir) }
+      _run checkout_detach_options, { :checksum_hash => checksum_hash, :repo_dir => dir }
     end
 
     def run_reset_hard(dir, checksum_hash)
       _pp "GIT RESET", dir, checksum_hash
-      _run reset_options, { :checksum_hash => checksum_hash, :repo_dir => shellquote(dir) }
+      _run reset_options, { :checksum_hash => checksum_hash, :repo_dir => dir }
     end
 
     def commit_hash(dir)
-      `#{@command} --git-dir #{shellquote(dir +'/.git')} --work-tree #{shellquote(dir)} rev-parse --verify HEAD`.strip
+      `#{@command} --git-dir #{dir}/.git --work-tree #{dir} rev-parse --verify HEAD`.strip
     end
 
     def current_branch(dir)
-      `#{@command} --git-dir #{shellquote(dir + '/.git')} --work-tree #{shellquote(dir)} rev-parse --abbrev-ref HEAD`.strip
+      `#{@command} --git-dir #{dir}/.git --work-tree #{dir} rev-parse --abbrev-ref HEAD`.strip
     end
   end
 

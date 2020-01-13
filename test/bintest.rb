@@ -12,15 +12,6 @@ def cmd(s)
   end
 end
 
-def shellquote(s)
-  case RbConfig::CONFIG['host_os']
-  when /mswin(?!ce)|mingw|bccwin/
-    "\"#{s}\""
-  else
-    "'#{s}'"
-  end
-end
-
 print "bintest - Command Binary Test\n\n"
 
 ARGV.each do |gem|

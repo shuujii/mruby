@@ -62,7 +62,7 @@ module MRuby
 
       git_dir = "#{MRUBY_ROOT}/.git"
       if File.directory?(git_dir)
-        mruby['git_commit'] = `git --git-dir #{shellquote(git_dir)} --work-tree #{shellquote(MRUBY_ROOT)} rev-parse --verify HEAD`.strip
+        mruby['git_commit'] = `git --git-dir #{git_dir} --work-tree #{MRUBY_ROOT} rev-parse --verify HEAD`.strip
       end
 
       mruby

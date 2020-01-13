@@ -20,15 +20,6 @@ class String
   end
 end
 
-
-def shellquote(s)
-  if ENV['OS'] == 'Windows_NT'
-    "\"#{s}\""
-  else
-    "'#{s}'"
-  end
-end
-
 def install_D(src, dst)
   rm_f dst
   mkdir_p File.dirname(dst)
