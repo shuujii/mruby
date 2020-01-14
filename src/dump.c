@@ -943,18 +943,14 @@ mrb_dump_irep_cfunc(mrb_state *mrb, mrb_irep *irep, uint8_t flags, FILE *fp, con
       return MRB_DUMP_WRITE_FAULT;
     }
     if (fprintf(fp,
-          "#ifdef __cplusplus\n"
-          "extern const uint8_t %s[];\n"
-          "#endif\n"
           "const uint8_t\n"
           "#if defined __GNUC__\n"
-          "__attribute__((aligned(%u)))\n"
+          "__attribute__((aligned(%zu)))\n"
           "#elif defined _MSC_VER\n"
-          "__declspec(align(%u))\n"
+          "__declspec(align(%zu))\n"
           "#endif\n"
           "%s[] = {",
-          initname,
-          (uint16_t)MRB_DUMP_ALIGNMENT, (uint16_t)MRB_DUMP_ALIGNMENT, initname) < 0) {
+          MRB_DUMP_ALIGNMENT, MRB_DUMP_ALIGNMENT, initname) < 0) {
       mrb_free(mrb, bin);
       return MRB_DUMP_WRITE_FAULT;
     }
