@@ -59,12 +59,11 @@ namespace :gitlab do
     configs = []
     [true, false].each do |mode_32|
       ['', 'MRB_USE_FLOAT'].each do |float_conf|
-        ['', 'MRB_INT16', 'MRB_INT64'].each do |int_conf|
+        ['', 'MRB_INT64'].each do |int_conf|
           ['', 'MRB_NAN_BOXING', 'MRB_WORD_BOXING'].each do |boxing_conf|
             ['', 'MRB_UTF8_STRING'].each do |utf8_conf|
               next if (float_conf == 'MRB_USE_FLOAT') && (boxing_conf == 'MRB_NAN_BOXING')
               next if (int_conf == 'MRB_INT64') && (boxing_conf == 'MRB_NAN_BOXING')
-              next if (int_conf == 'MRB_INT16') && (boxing_conf == 'MRB_WORD_BOXING')
               next if (int_conf == 'MRB_INT64') && (boxing_conf == 'MRB_WORD_BOXING') && mode_32
               env = [float_conf, int_conf, boxing_conf, utf8_conf].map do |conf|
                 conf == '' ? nil : "-D#{conf}=1"
@@ -73,7 +72,6 @@ namespace :gitlab do
               _info = ''
               _info += mode_32 ? '32bit ' : '64bit '
               _info += float_conf['USE'] ? 'float ' : ''
-              _info += int_conf['16'] ? 'int16 ' : ''
               _info += int_conf['64'] ? 'int64 ' : ''
               _info += boxing_conf['NAN'] ? 'nan ' : ''
               _info += boxing_conf['WORD'] ? 'word ' : ''
@@ -84,32 +82,32 @@ namespace :gitlab do
           end
         end
       end
-    end
-    path = './.gitlab-ci.yml'
-    data = YAML.load_file(path)
-    data.keys.select do |key|
-      key.start_with? 'Test'
-    end.each do |key|
-      data.delete(key)
-    end
-    CI_COMPILERS.each do |compiler|
-      configs.each do |config|
-        name = "Test #{compiler} #{config['_info']}"
-        hash = {
-          'CC' => compiler,
-          'CXX' => compiler.gsub('gcc', 'g++').gsub('clang', 'clang++'),
-          'LD' => compiler
-        }
-        hash = hash.merge(config)
-        hash.delete('_info')
-        data[name] = {
-          'stage' => 'test',
-          'image' => ci_docker_tag(compiler),
-          'variables' => hash,
-          'script' => 'env; rake --verbose all test'
-        }
+      path = './.gitlab-ci.yml'
+      data = YAML.load_file(path)
+      data.keys.select do |key|
+        key.start_with? 'Test'
+      end.each do |key|
+        data.delete(key)
       end
+      CI_COMPILERS.each do |compiler|
+        configs.each do |config|
+          name = "Test #{compiler} #{config['_info']}"
+          hash = {
+            'CC' => compiler,
+            'CXX' => compiler.gsub('gcc', 'g++').gsub('clang', 'clang++'),
+            'LD' => compiler
+          }
+          hash = hash.merge(config)
+          hash.delete('_info')
+          data[name] = {
+            'stage' => 'test',
+            'image' => ci_docker_tag(compiler),
+            'variables' => hash,
+            'script' => 'env; rake --verbose all test'
+          }
+        end
+      end
+      File.open(path, 'w') { |f| YAML.dump(data, f) }
     end
-    File.open(path, 'w') { |f| YAML.dump(data, f) }
   end
 end
