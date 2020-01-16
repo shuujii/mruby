@@ -59,7 +59,7 @@ namespace :gitlab do
     configs = []
     [true, false].each do |mode_32|
       ['', 'MRB_USE_FLOAT'].each do |float_conf|
-        ['', 'MRB_INT64'].each do |int_conf|
+        ['MRB_INT32', 'MRB_INT64'].each do |int_conf|
           ['', 'MRB_NAN_BOXING', 'MRB_WORD_BOXING'].each do |boxing_conf|
             ['', 'MRB_UTF8_STRING'].each do |utf8_conf|
               next if (float_conf == 'MRB_USE_FLOAT') && (boxing_conf == 'MRB_NAN_BOXING')
@@ -72,7 +72,7 @@ namespace :gitlab do
               _info = ''
               _info += mode_32 ? '32bit ' : '64bit '
               _info += float_conf['USE'] ? 'float ' : ''
-              _info += int_conf['64'] ? 'int64 ' : ''
+              _info += int_conf['32'] ? 'int32 ' : 'int64 '
               _info += boxing_conf['NAN'] ? 'nan ' : ''
               _info += boxing_conf['WORD'] ? 'word ' : ''
               _info += utf8_conf['UTF8'] ? 'utf8 ' : ''
