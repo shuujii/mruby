@@ -76,28 +76,20 @@ end
 desc "run all mruby tests"
 task :test => :all do
   MRuby.each_target do |build|
-    %w[lib bin].each do |k|
-      n = "test:#{k}:#{build.name}"
-      Rake::Task[n].invoke if Rake::Task.task_defined?(n)
+    %w[lib bin].each do |type|
+      next unless build.__send__("#{type.sub('lib','')}test_enabled?")
+      Rake::Task["test:#{type}"].invoke(build.name)
     end
   end
 end
 
 namespace :test do
-  {lib: "run libmruby tests", bin: "run command binaries tests"}.each do |k, d|
-    desc d
-    task k do
-      MRuby.each_target do |build|
-        n = "test:#{k}:#{build.name}"
-        Rake::Task[n].invoke if Rake::Task.task_defined?(n)
-      end
-    end
-  end
-end
-
-MRuby.each_target do |build|
-  if build.test_enabled?
-    task "test:lib:#{build.name}" => :all do
+  desc "run libmruby tests"
+  task :lib => :all do |t, a|
+    targets = a.to_a
+    MRuby.each_target do |build|
+      next unless build.test_enabled?
+      next unless targets.empty? || targets.include?(build.name)
       gem = build.gem(core: 'mruby-test')
       gem.setup
       gem.setup_compilers
@@ -110,9 +102,20 @@ MRuby.each_target do |build|
     end
   end
 
-  if build.bintest_enabled?
-    task "test:bin:#{build.name}" => :all do
+  desc "run command binaries tests"
+  task :bin => :all do |t, a|
+    targets = a.to_a
+    MRuby.each_target do |build|
+      next unless build.bintest_enabled?
+      next unless targets.empty? || targets.include?(build.name)
       build.run_bintest
+    end
+  end
+
+  namespace :bin do
+    desc "run command binaries tests (skip build)"
+    task :run_only do
+      MRuby.each_target{|build| build.run_bintest if build.bintest_enabled?}
     end
   end
 end
