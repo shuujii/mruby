@@ -4,7 +4,7 @@ class Object
   class << self
     def attr_block(*syms)
       syms.flatten.each do |sym|
-        class_eval "def #{sym}(&block);block.call(@#{sym}) if block_given?;@#{sym};end"
+        class_eval "def #{sym}(&b) b.call(@#{sym}) if b; @#{sym} end"
       end
     end
   end
