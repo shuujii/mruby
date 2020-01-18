@@ -11,15 +11,16 @@
 
 struct mrbc_args {
   int argc;
-  char **argv;
   int idx;
+  char **argv;
   const char *prog;
   const char *outfile;
   const char *initname;
-  mrb_bool check_syntax : 1;
-  mrb_bool verbose      : 1;
-  mrb_bool remove_lv    : 1;
-  unsigned int flags    : 4;
+  mrb_bool check_syntax;
+  mrb_bool verbose;
+  mrb_bool remove_lv;
+  mrb_bool initextern;
+  unsigned int flags;
 };
 
 static void
@@ -28,10 +29,11 @@ usage(const char *name)
   static const char *const usage_msg[] = {
   "switches:",
   "-c           check syntax only",
-  "-o<outfile>  place the output into <outfile>",
+  "-o outfile   place the output into <outfile>",
   "-v           print version number, then turn on verbose mode",
   "-g           produce debugging information",
-  "-B<symbol>   binary <symbol> output in C language format",
+  "-B symbol    binary symbol output in C language format (external linkage)",
+  "-b symbol    binary symbol output in C language format (internal linkage)",
   "-e           generate little endian iseq data",
   "-E           generate big endian iseq data",
   "--remove-lv  remove local variables",
@@ -42,7 +44,7 @@ usage(const char *name)
   };
   const char *const *p = usage_msg;
 
-  printf("Usage: %s [switches] programfile\n", name);
+  printf("Usage: %s [switches] programfile ...\n", name);
   while (*p)
     printf("  %s\n", *p++);
 }
@@ -96,7 +98,7 @@ parse_args(mrb_state *mrb, int argc, char **argv, struct mrbc_args *args)
           args->outfile = get_outfilename(mrb, argv[i] + 2, "");
         }
         break;
-      case 'B':
+      case 'B': case 'b':
         if (argv[i][2] == '\0' && argv[i+1]) {
           i++;
           args->initname = argv[i];
@@ -108,6 +110,7 @@ parse_args(mrb_state *mrb, int argc, char **argv, struct mrbc_args *args)
           fprintf(stderr, "%s: function name is not specified.\n", args->prog);
           return -1;
         }
+        args->initextern = (argv[i])[1] == 'B';
         break;
       case 'c':
         args->check_syntax = TRUE;
@@ -241,7 +244,7 @@ dump_file(mrb_state *mrb, FILE *wfp, const char *outfile, struct RProc *proc, st
     mrb_irep_remove_lv(mrb, irep);
   }
   if (args->initname) {
-    n = mrb_dump_irep_cfunc(mrb, irep, args->flags, wfp, args->initname);
+    n = mrb_dump_irep_cfunc(mrb, irep, args->flags, wfp, args->initname, args->initextern);
     if (n == MRB_DUMP_INVALID_ARGUMENT) {
       fprintf(stderr, "%s: invalid C language symbol name\n", args->initname);
     }

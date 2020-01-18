@@ -324,16 +324,17 @@ module MRuby
     def initialize(build)
       super
       @command = nil
-      @compile_options = "-B%{funcname} -o-"
+      @compile_options = "-%{flag}%{funcname} -o-"
     end
 
-    def run(out, infiles, funcname)
+    def run(out, infiles, funcname, static: false)
       @command ||= @build.mrbcfile
       infiles = [infiles].flatten
       infiles.each do |f|
         _pp "MRBC", f.relative_path, indent: 2
       end
-      cmd = "#{filename @command} #{@compile_options % {:funcname => funcname}} #{filename(infiles).join(' ')}"
+      opt = @compile_options % {flag: static ? "b" : "B", funcname: funcname}
+      cmd = "#{filename @command} #{opt} #{filename(infiles).join(' ')}"
       puts cmd if Rake.verbose
       IO.popen(cmd, 'r+') do |io|
         out.puts io.read

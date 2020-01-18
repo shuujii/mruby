@@ -912,7 +912,7 @@ dump_bigendian_p(uint8_t flags)
 }
 
 int
-mrb_dump_irep_cfunc(mrb_state *mrb, mrb_irep *irep, uint8_t flags, FILE *fp, const char *initname)
+mrb_dump_irep_cfunc(mrb_state *mrb, mrb_irep *irep, uint8_t flags, FILE *fp, const char *initname, mrb_bool initextern)
 {
   uint8_t *bin = NULL;
   size_t bin_size = 0, bin_idx = 0;
@@ -943,6 +943,7 @@ mrb_dump_irep_cfunc(mrb_state *mrb, mrb_irep *irep, uint8_t flags, FILE *fp, con
       return MRB_DUMP_WRITE_FAULT;
     }
     if (fprintf(fp,
+          "%s\n"
           "const uint8_t\n"
           "#if defined __GNUC__\n"
           "__attribute__((aligned(%zu)))\n"
@@ -950,6 +951,10 @@ mrb_dump_irep_cfunc(mrb_state *mrb, mrb_irep *irep, uint8_t flags, FILE *fp, con
           "__declspec(align(%zu))\n"
           "#endif\n"
           "%s[] = {",
+          initextern ? "#ifdef __cplusplus\n"
+                       "extern\n"
+                       "#endif"
+                     : "static",
           MRB_DUMP_ALIGNMENT, MRB_DUMP_ALIGNMENT, initname) < 0) {
       mrb_free(mrb, bin);
       return MRB_DUMP_WRITE_FAULT;
