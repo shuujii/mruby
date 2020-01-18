@@ -19,8 +19,8 @@ struct mrbc_args {
   mrb_bool check_syntax;
   mrb_bool verbose;
   mrb_bool remove_lv;
-  mrb_bool initextern;
-  unsigned int flags;
+  mrb_bool initstatic;
+  uint8_t flags;
 };
 
 static void
@@ -110,7 +110,7 @@ parse_args(mrb_state *mrb, int argc, char **argv, struct mrbc_args *args)
           fprintf(stderr, "%s: function name is not specified.\n", args->prog);
           return -1;
         }
-        args->initextern = (argv[i])[1] == 'B';
+        args->initstatic = (argv[i])[1] == 'b';
         break;
       case 'c':
         args->check_syntax = TRUE;
@@ -244,7 +244,7 @@ dump_file(mrb_state *mrb, FILE *wfp, const char *outfile, struct RProc *proc, st
     mrb_irep_remove_lv(mrb, irep);
   }
   if (args->initname) {
-    n = mrb_dump_irep_cfunc(mrb, irep, args->flags, wfp, args->initname, args->initextern);
+    n = mrb_dump_irep_cfunc(mrb, irep, args->flags, wfp, args->initname, args->initstatic);
     if (n == MRB_DUMP_INVALID_ARGUMENT) {
       fprintf(stderr, "%s: invalid C language symbol name\n", args->initname);
     }

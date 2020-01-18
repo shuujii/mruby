@@ -343,10 +343,6 @@ module MRuby
         fail "Command failed with status (#{$?.exitstatus}): [#{cmd[0,42]}...]"
       end
     rescue Exception
-puts "------"
-puts $!
-puts $@
-puts "------"
       # if mrbc execution fail, drop the file
       rm_f out.path
       raise
