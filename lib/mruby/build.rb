@@ -274,7 +274,7 @@ EOS
 
     def filename(name)
       if name.is_a?(Array)
-        name.flatten.map { |n| filename(n) }
+        name.flatten.map! { |n| filename(n) }
       else
         name.gsub('/', file_separator)
       end
@@ -282,7 +282,7 @@ EOS
 
     def cygwin_filename(name)
       if name.is_a?(Array)
-        name.flatten.map { |n| cygwin_filename(n) }
+        name.flatten.map! { |n| cygwin_filename(n) }
       else
         '"%s"' % `cygpath -w "#{filename(name)}"`.strip
       end
@@ -290,7 +290,7 @@ EOS
 
     def exefile(name)
       if name.is_a?(Array)
-        name.flatten.map { |n| exefile(n) }
+        name.flatten.map! { |n| exefile(n) }
       elsif File.extname(name).empty?
         "#{name}#{exts.executable}"
       else
@@ -301,7 +301,7 @@ EOS
 
     def objfile(name)
       if name.is_a?(Array)
-        name.flatten.map { |n| objfile(n) }
+        name.flatten.map! { |n| objfile(n) }
       else
         "#{name}#{exts.object}"
       end
@@ -309,7 +309,7 @@ EOS
 
     def libfile(name)
       if name.is_a?(Array)
-        name.flatten.map { |n| libfile(n) }
+        name.flatten.map! { |n| libfile(n) }
       else
         "#{name}#{exts.library}"
       end

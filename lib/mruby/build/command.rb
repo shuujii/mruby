@@ -69,8 +69,8 @@ module MRuby
     end
 
     def all_flags(_defines=[], _include_paths=[], _flags=[])
-      define_flags = [defines, _defines].flatten.map{ |d| option_define % d }
-      include_path_flags = [include_paths, _include_paths].flatten.map do |f|
+      define_flags = [defines, _defines].flatten.map!{ |d| option_define % d }
+      include_path_flags = [include_paths, _include_paths].flatten.map! do |f|
         if MRUBY_BUILD_HOST_IS_CYGWIN
           option_include_path % cygwin_filename(f)
         else
@@ -182,7 +182,7 @@ module MRuby
     end
 
     def all_flags(_library_paths=[], _flags=[])
-      library_path_flags = [library_paths, _library_paths].flatten.map do |f|
+      library_path_flags = [library_paths, _library_paths].flatten.map! do |f|
         if MRUBY_BUILD_HOST_IS_CYGWIN
           option_library_path % cygwin_filename(f)
         else
@@ -193,12 +193,12 @@ module MRuby
     end
 
     def library_flags(_libraries)
-      [libraries, _libraries].flatten.map{ |d| option_library % d }.join(' ')
+      [libraries, _libraries].flatten.map!{ |d| option_library % d }.join(' ')
     end
 
     def run(outfile, objfiles, _libraries=[], _library_paths=[], _flags=[], _flags_before_libraries=[], _flags_after_libraries=[])
       mkdir_p File.dirname(outfile)
-      library_flags = [libraries, _libraries].flatten.map { |d| option_library % d }
+      library_flags = [libraries, _libraries].flatten.map! { |d| option_library % d }
 
       _pp "LD", outfile.relative_path
       if MRUBY_BUILD_HOST_IS_CYGWIN
