@@ -14,7 +14,7 @@ module MRuby
     end
 
     def each_target(&block)
-      return to_enum(:each_target) if block.nil?
+      return to_enum __callee__ unless block
       @targets.each do |key, target|
         target.instance_eval(&block)
       end
@@ -39,22 +39,52 @@ module MRuby
   end
 
   class Build
-    class << self
-      attr_accessor :current
-    end
     include Rake::DSL
     include LoadGems
-    attr_accessor :name, :bins, :exts, :file_separator, :build_dir, :gem_clone_dir
-    attr_reader :libmruby_objs, :gems, :toolchains, :gem_dir_to_repo_url
-    attr_writer :enable_bintest, :enable_test
-
-    alias libmruby libmruby_objs
 
     COMPILERS = %w(cc cxx objc asm)
     COMMANDS = COMPILERS + %w(linker archiver yacc gperf git exts mrbc)
-    attr_block MRuby::Build::COMMANDS
-
     Exts = Struct.new(:object, :executable, :library)
+
+    class << self
+      attr_accessor :current
+
+      def define_builder
+        linker_args = Array.new(5){[]}
+        MRuby.each_target do |build|
+          build.gems.each do |gem|
+            linker_args[0] << gem.linker.libraries
+            linker_args[1] << gem.linker.library_paths
+            linker_args[2] << gem.linker.flags
+            linker_args[3] << gem.linker.flags_before_libraries
+            linker_args[4] << gem.linker.flags_after_libraries
+          end
+        end
+
+        MRuby.each_target.map do |build|
+          [ build.gems.map {|gem| gem.define_builder(*linker_args)},
+            build.bins.map do |bin|
+              install_path = build.exefile("#{MRUBY_INSTALL_DIR}/#{bin}")
+              source_path = build.exefile("#{build.build_dir}/bin/#{bin}")
+              if build == MRuby.main_target
+                file install_path => source_path do
+                  install_D source_path, install_path
+                end
+                install_path
+              else
+                souce_path
+              end
+            end
+          ]
+        end.flatten
+      end
+    end
+
+    attr_accessor :name, :bins, :exts, :file_separator, :build_dir, :gem_clone_dir
+    attr_reader :libmruby_objs, :gems, :toolchains, :gem_dir_to_repo_url
+    attr_writer :enable_bintest, :enable_test
+    attr_block MRuby::Build::COMMANDS
+    alias libmruby libmruby_objs
 
     def initialize(name='host', build_dir=nil, &block)
       @name = name.to_s

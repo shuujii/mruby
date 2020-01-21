@@ -30,37 +30,7 @@ load "#{MRUBY_ROOT}/tasks/benchmark.rake"
 load "#{MRUBY_ROOT}/tasks/gitlab.rake"
 load "#{MRUBY_ROOT}/tasks/doc.rake"
 
-depfiles = MRuby.main_target.bins.map do |bin|
-  install_path = MRuby.main_target.exefile("#{MRUBY_INSTALL_DIR}/#{bin}")
-  source_path = MRuby.main_target.exefile("#{MRuby.main_target.build_dir}/bin/#{bin}")
-
-  file install_path => source_path do |t|
-    install_D t.prerequisites.first, t.name
-  end
-
-  install_path
-end
-
-linker_args = Array.new(5){[]}
-MRuby.each_target do |build|
-  build.gems.each do |gem|
-    linker_args[0] << gem.linker.libraries
-    linker_args[1] << gem.linker.library_paths
-    linker_args[2] << gem.linker.flags
-    linker_args[3] << gem.linker.flags_before_libraries
-    linker_args[4] << gem.linker.flags_after_libraries
-  end
-end
-MRuby.each_target do |build|
-  build.gems.each {|gem| depfiles << gem.define_builder(*linker_args)}
-  depfiles << build.libraries
-  unless build == MRuby.main_target
-    build.bins.each do |bin|
-      depfiles << build.exefile("#{build.build_dir}/bin/#{bin}")
-    end
-  end
-end
-depfiles.flatten!
+depfiles = MRuby::Build.define_builder
 
 task :default => :all
 
