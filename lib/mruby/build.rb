@@ -40,6 +40,7 @@ module MRuby
 
   class Build
     include Rake::DSL
+    extend Rake::DSL
     include LoadGems
 
     COMPILERS = %w(cc cxx objc asm)
