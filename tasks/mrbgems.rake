@@ -1,61 +1,72 @@
-MRuby.each_target do
-  if enable_gems?
+# frozen_string_literal: true
+
+MRuby.each_target do |build|
+  if build.enable_gems?
     # set up all gems
-    gems.each(&:setup)
-    gems.check self
+    build.gems.each(&:setup)
+    build.gems.check(build)
 
     # loader all gems
-    self.libmruby_objs << objfile("#{build_dir}/mrbgems/gem_init")
-    file objfile("#{build_dir}/mrbgems/gem_init") => ["#{build_dir}/mrbgems/gem_init.c", "#{build_dir}/LEGAL"]
-    file "#{build_dir}/mrbgems/gem_init.c" => [MRUBY_CONFIG, __FILE__] do |t|
-      mkdir_p "#{build_dir}/mrbgems"
-      open(t.name, 'w') do |f|
-        gem_func_gems = gems.select { |g| g.generate_functions }
-        gem_func_decls = gem_func_gems.each_with_object('') do |g, s|
-          s << "void GENERATED_TMP_mrb_#{g.funcname}_gem_init(mrb_state*);\n" \
-               "void GENERATED_TMP_mrb_#{g.funcname}_gem_final(mrb_state*);\n"
-        end
-        gem_init_calls = gem_func_gems.each_with_object('') do |g, s|
-          s << "  GENERATED_TMP_mrb_#{g.funcname}_gem_init(mrb);\n"
-        end
-        gem_final_calls = gem_func_gems.reverse_each.with_object('') do |g, s|
-          s << "  GENERATED_TMP_mrb_#{g.funcname}_gem_final(mrb);\n"
-        end
-        f.puts %Q[/*]
-        f.puts %Q[ * This file contains a list of all]
-        f.puts %Q[ * initializing methods which are]
-        f.puts %Q[ * necessary to bootstrap all gems.]
-        f.puts %Q[ *]
-        f.puts %Q[ * IMPORTANT:]
-        f.puts %Q[ *   This file was generated!]
-        f.puts %Q[ *   All manual changes will get lost.]
-        f.puts %Q[ */]
-        f.puts %Q[]
-        f.puts %Q[#include <mruby.h>]
-        f.puts %Q[]
-        f.write gem_func_decls
-        unless gem_final_calls.empty?
-        f.puts %Q[]
-          f.puts %Q[static void]
-          f.puts %Q[mrb_final_mrbgems(mrb_state *mrb) {]
-          f.write gem_final_calls
-          f.puts %Q[}]
-        end
-        f.puts %Q[]
-        f.puts %Q[void]
-        f.puts %Q[mrb_init_mrbgems(mrb_state *mrb) {]
-        f.write gem_init_calls
-        f.puts %Q[  mrb_state_atexit(mrb, mrb_final_mrbgems);] unless gem_final_calls.empty?
-        f.puts %Q[}]
+    legal = "#{build.build_dir}/LEGAL"
+    init_c = "#{build.build_dir}/mrbgems/gem_init.c"
+    init_obj = build.objfile(init_c.pathmap("%X"))
+    init_gems = build.gems.select(&:generate_functions)
+    build.libmruby_objs << init_obj
+    file init_obj => [init_c, legal]
+    file init_c => :generate_mrbgems_gem_init_c
+    task :generate_mrbgems_gem_init_c do |t|
+      def t.timestamp; Time.at(0) end
+      code = <<-EOS.dup
+/*
+ * This file contains a list of all
+ * initializing methods which are
+ * necessary to bootstrap all gems.
+ *
+ * IMPORTANT:
+ *   This file was generated!
+ *   All manual changes will get lost.
+ */
+
+#include <mruby.h>
+
+      EOS
+      init_gems.each do |g|
+        code << <<-EOS
+void GENERATED_TMP_mrb_#{g.funcname}_gem_init(mrb_state*);
+void GENERATED_TMP_mrb_#{g.funcname}_gem_final(mrb_state*);
+        EOS
+      end
+      unless init_gems.empty?
+        code << <<-EOS
+
+static void
+mrb_final_mrbgems(mrb_state *mrb)
+{
+  #{init_gems.map{|g| "GENERATED_TMP_mrb_#{g.funcname}_gem_final(mrb);"}*"\n  "}
+}
+        EOS
+      end
+      code << <<-EOS
+
+void
+mrb_init_mrbgems(mrb_state *mrb)
+{
+  #{init_gems.map{|g| "GENERATED_TMP_mrb_#{g.funcname}_gem_init(mrb);"}*"\n  "}
+  #{"mrb_state_atexit(mrb, mrb_final_mrbgems);" unless init_gems.empty?}
+}
+      EOS
+      if !File.exist?(init_c) || File.read(init_c) != code
+        mkdir_p File.dirname(init_c)
+        File.write(init_c, code)
       end
     end
   end
 
   # legal documents
-  file "#{build_dir}/LEGAL" => [MRUBY_CONFIG, __FILE__] do |t|
-    mkdir_p File.dirname t.name
-    open(t.name, 'w+') do |f|
-     f.puts <<LEGAL
+  file legal => __FILE__ do
+    mkdir_p File.dirname(legal)
+    File.open(legal, "w") do |f|
+      f.puts <<-EOS
 Copyright (c) #{Time.now.year} mruby developers
 
 Permission is hereby granted, free of charge, to any person obtaining a
@@ -75,19 +86,19 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
-LEGAL
+      EOS
 
-      if enable_gems?
-        f.puts <<GEMS_LEGAL
+      if build.enable_gems?
+        f.puts <<-EOS
 
 Additional Licenses
 
 Due to the reason that you choosed additional mruby packages (GEMS),
 please check the following additional licenses too:
-GEMS_LEGAL
+        EOS
 
-        gems.map do |g|
-          authors = [g.authors].flatten.sort.join(", ")
+        build.gems.map do |g|
+          authors = [g.authors].flatten.sort!.join(", ")
           f.puts
           f.puts "GEM: #{g.name}"
           f.puts "Copyright (c) #{Time.now.year} #{authors}"
