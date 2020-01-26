@@ -73,7 +73,7 @@ module MRuby
                 end
                 install_path
               else
-                souce_path
+                source_path
               end
             end
           ]
