@@ -43,7 +43,7 @@ def erb(template, to=nil, context=self, locals={})
   to, locals = nil, to if to.kind_of?(Hash)
   context, locals = self, context if context.kind_of?(Hash)
   terms = template.split(/^(%)(.*?)(?:\n|\z) | (<%=)(.*?)%>/mx)
-  code = "proc{|out__, locals__|\n".dup
+  code = "proc{|out__,locals__|\n".dup
   locals.each_key {|k| code << "#{k}=locals__[:#{k}]\n"}
   while term = terms.shift
     next if term.empty?
@@ -55,10 +55,11 @@ def erb(template, to=nil, context=self, locals={})
     code << "\n"
   end
   code << "out__\n"
-  code << "}.('', locals)"
+  code << "}.('',locals)"
   result = context.instance_eval(code)
   if to
-    mkdir_p File.dirname(to) unless File.exist?(to)
+    dir = File.dirname(to)
+    mkdir_p dir unless File.exist?(dir)
     File.write(to, result)
   end
   result
