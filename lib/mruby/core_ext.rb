@@ -58,7 +58,7 @@ def erb(template, to=nil, context=self, locals={})
   code << "}.('', locals)"
   result = context.instance_eval(code)
   if to
-    mkdir_p to unless File.exist?(to)
+    mkdir_p File.dirname(to) unless File.exist?(to)
     File.write(to, result)
   end
   result
