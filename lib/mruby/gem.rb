@@ -7,7 +7,6 @@ module MRuby
     class << self
       attr_accessor :current
     end
-    LinkerConfig = Struct.new(:libraries, :library_paths, :flags, :flags_before_libraries, :flags_after_libraries)
 
     class Specification
       include Rake::DSL
@@ -52,13 +51,12 @@ module MRuby
       end
 
       def setup
-        return if defined?(@linker)  # return if already set up
+        return if defined?(@bins)  # return if already set up
 
         MRuby::Gem.current = self
         MRuby::Build::COMMANDS.each do |command|
           instance_variable_set("@#{command}", @build.send(command).clone)
         end
-        @linker = LinkerConfig.new([], [], [], [], [])
 
         @rbfiles = Dir.glob("#{@dir}/#{@mrblib_dir}/**/*.rb").sort
         @objs = Dir.glob("#{@dir}/#{@objs_dir}/*.{c,cpp,cxx,cc,m,asm,s,S}").map do |f|
@@ -136,9 +134,9 @@ module MRuby
         _pp "PKG-CONFIG", package_query
         escaped_package_query = Shellwords.escape(package_query)
         if system("pkg-config --exists #{escaped_package_query}")
-          cc.flags += [`pkg-config --cflags #{escaped_package_query}`.strip]
-          cxx.flags += [`pkg-config --cflags #{escaped_package_query}`.strip]
-          linker.flags_before_libraries += [`pkg-config --libs #{escaped_package_query}`.strip]
+          cc.flags << [`pkg-config --cflags #{escaped_package_query}`.strip]
+          cxx.flags << [`pkg-config --cflags #{escaped_package_query}`.strip]
+          linker.flags_before_libraries << [`pkg-config --libs #{escaped_package_query}`.strip]
           true
         else
           false
