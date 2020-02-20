@@ -97,8 +97,8 @@ module MRuby
 
       def setup_compilers
         compilers.each do |compiler|
-          compiler.define_rules build_dir, "#{dir}"
-          compiler.defines << %Q[MRBGEM_#{funcname.upcase}_VERSION=#{version}]
+          compiler.define_rules build_dir, dir
+          compiler.defines << "MRBGEM_#{funcname.upcase}_VERSION=#{version}"
           compiler.include_paths << "#{dir}/include" if File.directory? "#{dir}/include"
         end
 
@@ -134,9 +134,9 @@ module MRuby
         _pp "PKG-CONFIG", package_query
         escaped_package_query = Shellwords.escape(package_query)
         if system("pkg-config --exists #{escaped_package_query}")
-          cc.flags << [`pkg-config --cflags #{escaped_package_query}`.strip]
-          cxx.flags << [`pkg-config --cflags #{escaped_package_query}`.strip]
-          linker.flags_before_libraries << [`pkg-config --libs #{escaped_package_query}`.strip]
+          cc.flags << `pkg-config --cflags #{escaped_package_query}`.strip
+          cxx.flags << `pkg-config --cflags #{escaped_package_query}`.strip
+          linker.flags_before_libraries << `pkg-config --libs #{escaped_package_query}`.strip
           true
         else
           false
