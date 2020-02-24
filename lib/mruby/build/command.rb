@@ -111,7 +111,7 @@ module MRuby
             get_dependencies(file) + rakedep
           }
         ] do |t|
-          run t.name, t.prerequisites.first
+          run t.name, t.source
         end
 
         rule generated_file_matcher => [
@@ -122,7 +122,7 @@ module MRuby
             get_dependencies(file) + rakedep
           }
         ] do |t|
-          run t.name, t.prerequisites.first
+          run t.name, t.source
         end
       end
     end

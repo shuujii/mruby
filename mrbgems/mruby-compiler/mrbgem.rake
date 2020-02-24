@@ -20,19 +20,19 @@ MRuby::Gem::Specification.new 'mruby-compiler' do |spec|
   else
     core_objs << objfile("#{current_build_dir}/core/y.tab")
     file objfile("#{current_build_dir}/core/y.tab") => "#{current_build_dir}/core/y.tab.c" do |t|
-      cc.run t.name, t.prerequisites.first, [], ["#{current_dir}/core"]
+      cc.run t.name, t.source, [], ["#{current_dir}/core"]
     end
   end
 
   # Parser
   file "#{current_build_dir}/core/y.tab.c" => ["#{current_dir}/core/parse.y", lex_def] do |t|
     mkdir_p File.dirname t.name
-    yacc.run t.name, t.prerequisites.first
+    yacc.run t.name, t.source
   end
 
   # Lexical analyzer
   file lex_def => "#{current_dir}/core/keywords" do |t|
-    gperf.run t.name, t.prerequisites.first
+    gperf.run t.name, t.source
   end
 
   file build.libmruby_core_static => core_objs

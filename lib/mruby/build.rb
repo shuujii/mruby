@@ -223,7 +223,7 @@ EOS
       end
 
       file obj => cxx_src do |t|
-        cxx.run t.name, t.prerequisites.first, [], ["#{MRUBY_ROOT}/src"] + includes
+        cxx.run t.name, t.source, [], ["#{MRUBY_ROOT}/src"] + includes
       end
 
       obj

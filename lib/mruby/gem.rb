@@ -185,14 +185,14 @@ module MRuby
           if build == MRuby.main_target
             install_path = exefile("#{MRUBY_INSTALL_DIR}/#{bin}")
             file install_path => exec do |t|
-              install_D t.prerequisites.first, t.name
+              install_D t.source, t.name
             end
             install_path
           elsif build.name == 'host-debug'
             unless MRuby.targets['host'].gems.map{|g| g.bins}.include?([bin])
               install_path = exefile("#{MRUBY_INSTALL_DIR}/#{bin}")
               file install_path => exec do |t|
-                install_D t.prerequisites.first, t.name
+                install_D t.source, t.name
               end
               install_path
             end
