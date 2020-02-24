@@ -177,7 +177,7 @@ module MRuby
           end
 
           file exec => objs + libraries do |t|
-            build.linker.run t.name, t.prerequisites,
+            build.linker.run t.name, t.prereqs,
               linker_libraries, linker_library_paths, linker_flags,
               linker_flags_before_libraries, linker_flags_after_libraries
           end
