@@ -59,14 +59,10 @@ module MRuby
         end
 
         @rbfiles = Dir.glob("#{@dir}/#{@mrblib_dir}/**/*.rb").sort
-        @objs = Dir.glob("#{@dir}/#{@objs_dir}/*.{c,cpp,cxx,cc,m,asm,s,S}").map do |f|
-          objfile(f.relative_path_from(@dir).to_s.pathmap("#{build_dir}/%X"))
-        end
+        @objs = srcs_to_objs(objs_dir)
 
         @test_rbfiles = Dir.glob("#{dir}/test/**/*.rb").sort
-        @test_objs = Dir.glob("#{dir}/test/*.{c,cpp,cxx,cc,m,asm,s,S}").map do |f|
-          objfile(f.relative_path_from(dir).to_s.pathmap("#{build_dir}/%X"))
-        end
+        @test_objs = srcs_to_objs("test")
         @custom_test_init = !@test_objs.empty?
         @test_preload = nil # 'test/assert.rb'
         @test_args = {}
@@ -126,6 +122,12 @@ module MRuby
 
       def test_rbireps
         "#{build_dir}/gem_test.c"
+      end
+
+      def srcs_to_objs(src_dir)
+        Dir["#{dir}/#{src_dir}/*.{c,cpp,cxx,cc}"].map do |f|
+          objfile(f.relative_path_from(dir).to_s.pathmap("#{build_dir}/%X"))
+        end
       end
 
       def search_package(name, version_query=nil)

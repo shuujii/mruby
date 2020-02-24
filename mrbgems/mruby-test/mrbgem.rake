@@ -15,9 +15,7 @@ MRuby::Gem::Specification.new('mruby-test') do |spec|
   mrbtest_lib = libfile("#{build_dir}/mrbtest")
   mrbtest_objs = []
 
-  driver_objs = Dir.glob("#{dir}/*.{c,cpp,cxx,cc,m,asm,s,S}").map do |f|
-    objfile(f.relative_path_from(dir).to_s.pathmap("#{build_dir}/%X"))
-  end
+  driver_objs = srcs_to_objs(".")
 
   assert_c = "#{build_dir}/assert.c"
   assert_rb = "#{MRUBY_ROOT}/test/assert.rb"
