@@ -4,7 +4,6 @@ MRuby::Gem::Specification.new('mruby-test') do |spec|
   spec.summary = 'mruby test'
 
   build.bins << 'mrbtest'
-  spec.add_dependency('mruby-compiler', :core => 'mruby-compiler')
 
   spec.test_rbfiles = Dir.glob("#{MRUBY_ROOT}/test/t/*.rb")
 
