@@ -2,7 +2,7 @@ MRuby.each_target do |build|
   objs = build.libmruby_objs.flatten
 
   file build.libmruby_static => objs do |t|
-    build.archiver.run t.name, t.prereqs
+    build.archiver.run t.name, t.prerequisites
   end
 
   file "#{build.build_dir}/lib/libmruby.flags.mak" => [__FILE__, *objs] do |t|

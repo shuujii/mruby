@@ -13,6 +13,6 @@ MRuby.each_target do
   self.libmruby_objs << objs
 
   file libmruby_core_static => objs do |t|
-    archiver.run t.name, t.prereqs
+    archiver.run t.name, t.prerequisites
   end
 end

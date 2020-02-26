@@ -127,7 +127,7 @@ MRuby::Gem::Specification.new('mruby-test') do |spec|
   end
 
   file mrbtest_lib => mrbtest_objs do |t|
-    build.archiver.run t.name, t.prereqs
+    build.archiver.run t.name, t.prerequisites
   end
 
   unless build.build_mrbtest_lib_only?
@@ -137,7 +137,7 @@ MRuby::Gem::Specification.new('mruby-test') do |spec|
       gem_flags_after_libraries = build.gems.map { |g| g.linker.flags_after_libraries }
       gem_libraries = build.gems.map { |g| g.linker.libraries }
       gem_library_paths = build.gems.map { |g| g.linker.library_paths }
-      build.linker.run t.name, t.prereqs, gem_libraries, gem_library_paths, gem_flags,
+      build.linker.run t.name, t.prerequisites, gem_libraries, gem_library_paths, gem_flags,
                        gem_flags_before_libraries, gem_flags_after_libraries
     end
   end
