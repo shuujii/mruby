@@ -7,28 +7,25 @@ MRuby::Gem::Specification.new('mruby-test') do |spec|
 
   spec.test_rbfiles = Dir.glob("#{MRUBY_ROOT}/test/t/*.rb")
 
-  clib = "#{build_dir}/mrbtest.c"
-  mlib = clib.ext(exts.object)
-  exec = exefile("#{build.build_dir}/bin/mrbtest")
-
-  mrbtest_lib = libfile("#{build_dir}/mrbtest")
-  mrbtest_objs = []
-
-  driver_objs = srcs_to_objs(".")
-
+  exe = exefile("#{build.build_dir}/bin/mrbtest")
   assert_c = "#{build_dir}/assert.c"
   assert_rb = "#{MRUBY_ROOT}/test/assert.rb"
-  assert_lib = assert_c.ext(exts.object)
-  mrbtest_objs << assert_lib
+  assert_obj = assert_c.ext(exts.object)
+  mrbtest_c = "#{build_dir}/mrbtest.c"
+  mrbtest_obj = mrbtest_c.ext(exts.object)
+  mrbtest_objs = build.gems.flat_map do |g|
+    g.test_objs.dup << g.test_rbireps.ext(exts.object)
+  end << assert_obj
+  mrbtest_lib = libfile("#{build_dir}/mrbtest")
+  driver_objs = srcs_to_objs(".")
+  gem_table = build.gems.generate_gem_table build
 
-  file assert_lib => assert_c
+  file assert_obj => assert_c
   file assert_c => [assert_rb, build.mrbcfile] do |t|
     open(t.name, 'w') do |f|
       mrbc.run f, assert_rb, 'mrbtest_assert_irep'
     end
   end
-
-  gem_table = build.gems.generate_gem_table build
 
   build.gems.each do |g|
     test_rbobj = g.test_rbireps.ext(exts.object)
@@ -121,17 +118,12 @@ MRuby::Gem::Specification.new('mruby-test') do |spec|
     end
   end
 
-  build.gems.each do |v|
-    mrbtest_objs.concat v.test_objs
-    mrbtest_objs << v.test_rbireps.ext(exts.object)
-  end
-
   file mrbtest_lib => mrbtest_objs do |t|
     build.archiver.run t.name, t.prerequisites
   end
 
   unless build.build_mrbtest_lib_only?
-    file exec => [*driver_objs, mlib, mrbtest_lib, build.libmruby_static] do |t|
+    file exe => [*driver_objs, mrbtest_obj, mrbtest_lib, build.libmruby_static] do |t|
       gem_flags = build.gems.map { |g| g.linker.flags }
       gem_flags_before_libraries = build.gems.map { |g| g.linker.flags_before_libraries }
       gem_flags_after_libraries = build.gems.map { |g| g.linker.flags_after_libraries }
@@ -152,13 +144,13 @@ MRuby::Gem::Specification.new('mruby-test') do |spec|
     mkdir_p File.dirname(active_gems_path)
     File.write active_gems_path, current_gem_list
   end
-  file clib => active_gems_path if active_gem_list != current_gem_list
+  file mrbtest_c => active_gems_path if active_gem_list != current_gem_list
 
-  file mlib => clib
-  file clib => [build.mrbcfile, __FILE__] do |_t|
-    _pp "GEN", "*.rb", "#{clib.relative_path}"
-    mkdir_p File.dirname(clib)
-    open(clib, 'w') do |f|
+  file mrbtest_obj => mrbtest_c
+  file mrbtest_c => [build.mrbcfile, __FILE__] do |_t|
+    _pp "GEN", "*.rb", "#{mrbtest_c.relative_path}"
+    mkdir_p File.dirname(mrbtest_c)
+    open(mrbtest_c, 'w') do |f|
       f.puts %Q[/*]
       f.puts %Q[ * This file contains a list of all]
       f.puts %Q[ * test functions.]
