@@ -32,7 +32,6 @@ MRuby::Gem::Specification.new('mruby-test') do |spec|
 
   build.gems.each do |g|
     test_rbobj = g.test_rbireps.ext(exts.object)
-    g.test_objs << test_rbobj
     dep_list = build.gems.tsort_dependencies(g.test_dependencies, gem_table).select(&:generate_functions)
 
     file test_rbobj => g.test_rbireps
@@ -124,6 +123,7 @@ MRuby::Gem::Specification.new('mruby-test') do |spec|
 
   build.gems.each do |v|
     mrbtest_objs.concat v.test_objs
+    mrbtest_objs << v.test_rbireps.ext(exts.object)
   end
 
   file mrbtest_lib => mrbtest_objs do |t|
