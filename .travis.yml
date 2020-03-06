@@ -13,7 +13,7 @@ env:
   - MRUBY_CONFIG=travis_config.rb
 
 script:
-  - rake -m test:lib && rake test:bin:run_only
+  - rake -m test
 
 if: branch = master
 on_success: change
