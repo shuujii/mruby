@@ -359,14 +359,17 @@ EOS
     end
 
     def run_test
+      puts
       puts ">>> Test #{name} <<<"
+      puts
       mrbtest = exefile("#{build_dir}/bin/mrbtest")
       sh "#{filename mrbtest.relative_path}#{verbose_flag}"
-      puts
     end
 
     def run_bintest
+      puts
       puts ">>> Bintest #{name} <<<"
+      puts
       targets = @gems.select { |v| File.directory? "#{v.dir}/bintest" }.map { |v| filename v.dir }
       targets << filename(".") if File.directory? "./bintest"
       sh "ruby test/bintest.rb#{verbose_flag} #{targets.join ' '}"
@@ -387,7 +390,6 @@ EOS
         end
       end
       puts "================================================"
-      puts
     end
 
     def libmruby_static

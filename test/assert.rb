@@ -363,14 +363,12 @@ end
 # which were reported broken.
 def report
   t_print("\n")
-
-  $asserts.each do |msg|
-    t_print("#{msg}\n")
-  end
+  t_print("\n") unless $mrbtest_verbose
+  $asserts.each {|msg| t_print("#{msg}\n")}
+  t_print("\n") unless $asserts.empty?
 
   $total_test = $ok_test + $ko_test + $kill_test + $warning_test + $skip_test
   t_print("  Total: #{$total_test}\n")
-
   t_print("     OK: #{$ok_test}\n")
   t_print("     KO: #{$ko_test}\n")
   t_print("  Crash: #{$kill_test}\n")
