@@ -44,47 +44,55 @@ task :all => depfiles do
 end
 
 desc "run all mruby tests"
-task :test => :all do
-  MRuby.each_target do |build|
-    %w[lib bin].each do |type|
-      next unless build.__send__("#{type.sub('lib','')}test_enabled?")
-      Rake::Task["test:#{type}"].invoke(build.name)
-    end
-  end
+task :test => "test:build" do
+  Rake::Task["test:run"].invoke
 end
 
 namespace :test do
-  desc "run libmruby tests"
-  task :lib => :all do |t, a|
-    targets = a.to_a
-    MRuby.each_target do |build|
-      next unless build.test_enabled?
-      next unless targets.empty? || targets.include?(build.name)
-      gem = build.gem(core: 'mruby-test')
-      gem.setup
-      gem.setup_compilers
-      bin = build.exefile("#{build.build_dir}/bin/mrbtest")
-      Rake::Task[bin].invoke
-      if build == MRuby.main_target
-        install_D bin, "#{MRUBY_INSTALL_DIR}/#{File.basename(bin)}"
+  desc "build and run libmruby tests"
+  task :lib => "test:build:lib" do
+    Rake::Task["test:run:lib"].invoke
+  end
+
+  desc "build and run command binaries tests"
+  task :bin => "test:run:bin"
+
+  desc "build all mruby tests"
+  task :build => "test:build:lib"
+
+  namespace :build do
+    desc "build libmruby tests"
+    task :lib => :all do
+      MRuby.each_target do |build|
+        next unless build.test_enabled?
+        gem = build.gem(core: 'mruby-test')
+        gem.setup
+        gem.setup_compilers
+        bin = build.exefile("#{build.build_dir}/bin/mrbtest")
+        Rake::Task[bin].invoke
+        if build == MRuby.main_target
+          install_D bin, "#{MRUBY_INSTALL_DIR}/#{File.basename(bin)}"
+        end
       end
-      build.run_test
     end
   end
 
-  desc "run command binaries tests"
-  task :bin => :all do |t, a|
-    targets = a.to_a
+  desc "run all mruby tests"
+  task :run do
     MRuby.each_target do |build|
-      next unless build.bintest_enabled?
-      next unless targets.empty? || targets.include?(build.name)
-      build.run_bintest
+      build.run_test if build.test_enabled?
+      build.run_bintest if build.bintest_enabled?
     end
   end
 
-  namespace :bin do
-    desc "run command binaries tests (skip build)"
-    task :run_only do
+  namespace :run do
+    desc "run libmruby tests"
+    task :lib do
+      MRuby.each_target {|build| build.run_test if build.test_enabled?}
+    end
+
+    desc "run command binaries tests"
+    task :bin do
       MRuby.each_target{|build| build.run_bintest if build.bintest_enabled?}
     end
   end
