@@ -205,7 +205,7 @@ module MRuby
       end
 
       def generate_gem_init(fname)
-        open(fname, 'w') do |f|
+        File.open(fname, 'w') do |f|
           print_gem_init_header f
           build.mrbc.run f, rbfiles, "gem_mrblib_irep_#{funcname}" unless rbfiles.empty?
           f.puts %Q[void mrb_#{funcname}_gem_init(mrb_state *mrb);]
@@ -333,12 +333,19 @@ module MRuby
         @ary = @str.split('.').map(&:to_i)
       end
 
-      def each(&block); @ary.each(&block); end
-      def [](index); @ary[index]; end
+      def each(&block)
+        @ary.each(&block)
+      end
+
+      def [](index)
+        @ary[index]
+      end
+
       def []=(index, value)
         @ary[index] = value
         @str = @ary.join('.')
       end
+
       def slice!(index)
         @ary.slice!(index)
         @str = @ary.join('.')
@@ -368,8 +375,9 @@ module MRuby
         @ary.empty?
       end
 
-      def default_gem_params dep
-        if dep[:default]; dep
+      def default_gem_params(dep)
+        if dep[:default]
+          dep
         elsif File.exist? "#{MRUBY_ROOT}/mrbgems/#{dep[:gem]}" # check core
           { :gem => dep[:gem], :default => { :core => dep[:gem] } }
         else # fallback to mgem-list
@@ -377,7 +385,7 @@ module MRuby
         end
       end
 
-      def generate_gem_table build
+      def generate_gem_table(build)
         gem_table = each_with_object({}) { |spec, h| h[spec.name] = spec }
 
         default_gems = {}
@@ -425,7 +433,7 @@ module MRuby
         gem_table
       end
 
-      def tsort_dependencies ary, table, all_dependency_listed = false
+      def tsort_dependencies(ary, table, all_dependency_listed=false)
         unless all_dependency_listed
           left = ary.dup
           until left.empty?

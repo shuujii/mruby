@@ -8,8 +8,8 @@ MRuby::Gem::Specification.new('mruby-test') do |spec|
   spec.test_rbfiles = Dir.glob("#{MRUBY_ROOT}/test/t/*.rb")
 
   exe = exefile("#{build.build_dir}/bin/mrbtest")
-  assert_c = "#{build_dir}/assert.c"
   assert_rb = "#{MRUBY_ROOT}/test/assert.rb"
+  assert_c = "#{build_dir}/assert.c"
   assert_obj = assert_c.ext(exts.object)
   mrbtest_c = "#{build_dir}/mrbtest.c"
   mrbtest_obj = mrbtest_c.ext(exts.object)
@@ -18,20 +18,17 @@ MRuby::Gem::Specification.new('mruby-test') do |spec|
   end << assert_obj
   mrbtest_lib = libfile("#{build_dir}/mrbtest")
   driver_objs = srcs_to_objs(".")
-  gem_table = build.gems.generate_gem_table build
+  gem_table = build.gems.generate_gem_table(build)
 
   file assert_obj => assert_c
   file assert_c => [assert_rb, build.mrbcfile] do |t|
-    open(t.name, 'w') do |f|
-      mrbc.run f, assert_rb, 'mrbtest_assert_irep'
-    end
+    File.open(t.name, 'w') {|f| mrbc.run f, assert_rb, 'mrbtest_assert_irep'}
   end
 
   build.gems.each do |g|
-    test_rbobj = g.test_rbireps.ext(exts.object)
-    dep_list = build.gems.tsort_dependencies(g.test_dependencies, gem_table).select(&:generate_functions)
+    gem_deps = build.gems.tsort_dependencies(g.test_dependencies, gem_table).select(&:generate_functions)
 
-    file test_rbobj => g.test_rbireps
+    file g.test_rbireps.ext(exts.object) => g.test_rbireps
     file g.test_rbireps => [g.test_rbfiles, build.mrbcfile].flatten do |t|
       mkdir_p File.dirname(t.name)
       open(t.name, 'w') do |f|
@@ -56,7 +53,7 @@ MRuby::Gem::Specification.new('mruby-test') do |spec|
           g.build.mrbc.run f, rbfile, "gem_test_irep_#{g.funcname}_#{i}"
         end
         f.puts %Q[void mrb_#{g.funcname}_gem_test(mrb_state *mrb);] unless g.test_objs.empty?
-        dep_list.each do |d|
+        gem_deps.each do |d|
           f.puts %Q[void GENERATED_TMP_mrb_#{d.funcname}_gem_init(mrb_state *mrb);]
           f.puts %Q[void GENERATED_TMP_mrb_#{d.funcname}_gem_final(mrb_state *mrb);]
         end
@@ -76,7 +73,7 @@ MRuby::Gem::Specification.new('mruby-test') do |spec|
             f.puts %Q[    fprintf(stderr, "Invalid mrb_state, exiting \%s", __FUNCTION__);]
             f.puts %Q[    exit(EXIT_FAILURE);]
             f.puts %Q[  }]
-            dep_list.each do |d|
+            gem_deps.each do |d|
               f.puts %Q[  GENERATED_TMP_mrb_#{d.funcname}_gem_init(mrb2);]
               f.puts %Q[  mrb_state_atexit(mrb2, GENERATED_TMP_mrb_#{d.funcname}_gem_final);]
             end
