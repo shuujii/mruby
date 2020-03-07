@@ -19,7 +19,7 @@ MRUBY_CONFIG = (ENV['MRUBY_CONFIG'] && ENV['MRUBY_CONFIG'] != '') ? ENV['MRUBY_C
 load MRUBY_CONFIG
 
 # load basic rules
-MRuby.each_target {|build| build.define_rules}
+MRuby::Build.each {|build| build.define_rules}
 
 # load custom rules
 load "#{MRUBY_ROOT}/tasks/core.rake"
@@ -39,7 +39,7 @@ task :all => depfiles do
   puts
   puts "Build summary:"
   puts
-  MRuby.each_target {|build| build.print_build_summary}
+  MRuby::Build.each {|build| build.print_build_summary}
   MRuby::Lockfile.write
 end
 
@@ -63,23 +63,21 @@ namespace :test do
   namespace :build do
     desc "build libmruby tests"
     task :lib => :all do
-      MRuby.each_target do |build|
+      MRuby::Build.each do |build|
         next unless build.test_enabled?
         gem = build.gem(core: 'mruby-test')
         gem.setup
         gem.setup_compilers
         bin = build.exefile("#{build.build_dir}/bin/mrbtest")
         Rake::Task[bin].invoke
-        if build == MRuby.main_target
-          install_D bin, "#{MRUBY_INSTALL_DIR}/#{File.basename(bin)}"
-        end
+        install_D bin, "#{MRUBY_INSTALL_DIR}/#{File.basename(bin)}" if build.main?
       end
     end
   end
 
   desc "run all mruby tests"
   task :run do
-    MRuby.each_target do |build|
+    MRuby::Build.each do |build|
       build.run_test if build.test_enabled?
       build.run_bintest if build.bintest_enabled?
     end
@@ -88,26 +86,26 @@ namespace :test do
   namespace :run do
     desc "run libmruby tests"
     task :lib do
-      MRuby.each_target {|build| build.run_test if build.test_enabled?}
+      MRuby::Build.each {|build| build.run_test if build.test_enabled?}
     end
 
     desc "run command binaries tests"
     task :bin do
-      MRuby.each_target{|build| build.run_bintest if build.bintest_enabled?}
+      MRuby::Build.each{|build| build.run_bintest if build.bintest_enabled?}
     end
   end
 end
 
 desc "clean all built and in-repo installed artifacts"
 task :clean do
-  MRuby.each_target {|build| rm_rf build.build_dir}
+  MRuby::Build.each {|build| rm_rf build.build_dir}
   rm_f depfiles
-  rm_f "#{MRUBY_INSTALL_DIR}/bin/mrbtest" if MRuby.main_target.test_enabled?
+  rm_f "#{MRUBY_INSTALL_DIR}/bin/mrbtest" if MRuby::Build.main.test_enabled?
   puts "Cleaned up target build folder"
 end
 
 desc "clean everything!"
 task :deep_clean => %w[clean doc:clean] do
-  MRuby.each_target {|build| rm_rf build.gem_clone_dir}
+  MRuby::Build.each {|build| rm_rf build.gem_clone_dir}
   puts "Cleaned up mrbgems build folder"
 end

@@ -184,14 +184,14 @@ module MRuby
               linker_flags_before_libraries, linker_flags_after_libraries
           end
 
-          if build == MRuby.main_target
+          if build.main?
             install_path = exefile("#{MRUBY_INSTALL_DIR}/#{bin}")
             file install_path => exec do |t|
               install_D t.source, t.name
             end
             install_path
           elsif build.name == 'host-debug'
-            unless MRuby.targets['host'].gems.map{|g| g.bins}.include?([bin])
+            unless MRuby::Build['host'].gems.map{|g| g.bins}.include?([bin])
               install_path = exefile("#{MRUBY_INSTALL_DIR}/#{bin}")
               file install_path => exec do |t|
                 install_D t.source, t.name

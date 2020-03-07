@@ -7,17 +7,20 @@ module MRuby
   autoload :Lockfile, "mruby/lockfile"
 
   class << self
-    attr_accessor :main_target
-
-    def targets
-      @targets ||= {}
+    # depreated
+    def main_target
+      Build.main
     end
 
+    # depreated
+    def targets
+      Build.all
+    end
+
+    # depreated
     def each_target(&block)
       return to_enum __callee__ unless block
-      @targets.each do |key, target|
-        target.instance_eval(&block)
-      end
+      Build.each(&block)
     end
   end
 
@@ -40,7 +43,6 @@ module MRuby
 
   class Build
     include Rake::DSL
-    extend Rake::DSL
     include LoadGems
 
     COMPILERS = %w(cc cxx objc asm)
@@ -48,7 +50,24 @@ module MRuby
     Exts = Struct.new(:object, :executable, :library)
 
     class << self
-      attr_accessor :current
+      include Enumerable
+      include Rake::DSL
+
+      attr_accessor :current, :main
+
+      # For internal use
+      def all
+        @builds ||= {}
+      end
+
+      def each(&block)
+        return to_enum unless block
+        all.each_value {|build| build.instance_eval(&block)}
+      end
+
+      def [](name)
+        all[name]
+      end
 
       def define_builder
         linker_args = Array.new(5){[]}
@@ -67,7 +86,7 @@ module MRuby
             build.bins.map do |bin|
               install_path = build.exefile("#{MRUBY_INSTALL_DIR}/#{bin}")
               source_path = build.exefile("#{build.build_dir}/bin/#{bin}")
-              if build == MRuby.main_target
+              if build.main?
                 file install_path => source_path do
                   install_D source_path, install_path
                 end
@@ -90,7 +109,7 @@ module MRuby
     def initialize(name='host', build_dir=nil, &block)
       @name = name.to_s
 
-      unless MRuby.targets[@name]
+      unless build = self.class[@name]
         if ENV['OS'] == 'Windows_NT'
           @exts = Exts.new('.o', '.exe', '.a')
         else
@@ -126,14 +145,14 @@ module MRuby
         @toolchains = []
         @gem_dir_to_repo_url = {}
 
-        MRuby.main_target = self if MRuby.targets.empty? || name == 'host'
-        MRuby.targets[@name] = self
+        self.class.main = self if self.class.all.empty? || @name == 'host'
+        self.class.all[@name] = build = self
       end
 
-      MRuby::Build.current = MRuby.targets[@name]
-      MRuby.targets[@name].instance_eval(&block)
+      self.class.current = build
+      build.instance_eval(&block)
 
-      build_mrbc_exec if !@external_mrbcfile && name == 'host'
+      build_mrbc_exec if !@external_mrbcfile && @name == 'host'
     end
 
     def debug_enabled?
@@ -276,7 +295,7 @@ EOS
     def mrbcfile
       return @mrbcfile if @mrbcfile
 
-      mrbc_build = MRuby.targets['host']
+      mrbc_build = MRuby::Build['host']
       gems.each { |v| mrbc_build = self if v.name == 'mruby-bin-mrbc' }
       @mrbcfile = mrbc_build.exefile("#{mrbc_build.build_dir}/bin/mrbc")
     end
@@ -382,7 +401,7 @@ EOS
       puts "         Binaries: #{@bins.join(', ')}" unless @bins.empty?
       unless @gems.empty?
         puts "    Included Gems:"
-        @gems.map do |gem|
+        @gems.each do |gem|
           gem_version = " - #{gem.version}" if gem.version != '0.0.0'
           gem_summary = " - #{gem.summary}" if gem.summary
           puts "             #{gem.name}#{gem_version}#{gem_summary}"
@@ -403,6 +422,10 @@ EOS
     def libraries
       [libmruby_static]
     end
+
+    def main?
+      self.class.main == self
+    end
   end # Build
 
   class CrossBuild < Build
@@ -419,13 +442,13 @@ EOS
     end
 
     def mrbcfile
-      MRuby.targets['host'].exefile("#{MRuby.targets['host'].build_dir}/bin/mrbc")
+      MRuby::Build['host'].exefile("#{MRuby::Build['host'].build_dir}/bin/mrbc")
     end
 
     def run_test
       @test_runner.runner_options << verbose_flag
       mrbtest = exefile("#{build_dir}/bin/mrbtest")
-      if (@test_runner.command == nil)
+      if @test_runner.command == nil
         puts "You should run #{mrbtest} on target device."
         puts
       else
