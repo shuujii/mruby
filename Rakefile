@@ -55,7 +55,9 @@ namespace :test do
   end
 
   desc "build and run command binaries tests"
-  task :bin => "test:run:bin"
+  task :bin => :all do
+    Rake::Task["test:run:bin"].invoke
+  end
 
   desc "build all mruby tests"
   task :build => "test:build:lib"
