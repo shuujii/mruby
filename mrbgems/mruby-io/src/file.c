@@ -48,6 +48,7 @@
 #if defined(_WIN32) || defined(_WIN64)
   #define PATH_SEPARATOR ";"
   #define FILE_ALT_SEPARATOR "\\"
+  #define VOLUME_SEPARATOR ":"
 #else
   #define PATH_SEPARATOR ":"
 #endif
@@ -279,11 +280,58 @@ mrb_file__getwd(mrb_state *mrb, mrb_value klass)
   return path;
 }
 
+#ifdef _WIN32
+#define IS_FILESEP(x) (x == (*(char*)(FILE_SEPARATOR)) || x == (*(char*)(FILE_ALT_SEPARATOR)))
+#define IS_VOLSEP(x) (x == (*(char*)(VOLUME_SEPARATOR)))
+#define IS_DEVICEID(x) (x == '.' || x == '?')
+#define CHECK_UNCDEV_PATH (IS_FILESEP(path[0]) && IS_FILESEP(path[1]))
+
+static int 
+is_absolute_traditional_path(const char *path, size_t len)
+{
+  if (len < 3) return 0;
+  return (ISALPHA(path[0]) && IS_VOLSEP(path[1]) && IS_FILESEP(path[2]));
+}
+
+static int 
+is_aboslute_unc_path(const char *path, size_t len) {
+  if (len < 2) return 0;
+  return (CHECK_UNCDEV_PATH && !IS_DEVICEID(path[2]));
+}
+
+static int 
+is_absolute_device_path(const char *path, size_t len) {
+  if (len < 4) return 0;
+  return (CHECK_UNCDEV_PATH && IS_DEVICEID(path[2]) && IS_FILESEP(path[3]));
+}
+
 static int
 mrb_file_is_absolute_path(const char *path)
 {
-  return (path[0] == '/');
+  size_t len = strlen(path);
+  if (IS_FILESEP(path[0])) return 1;
+  if (len > 0)
+    return (
+      is_absolute_traditional_path(path, len) || 
+      is_aboslute_unc_path(path, len) || 
+      is_absolute_device_path(path, len)
+      );
+  else
+    return 0;
 }
+
+#undef IS_FILESEP
+#undef IS_VOLSEP
+#undef IS_DEVICEID
+#undef CHECK_UNCDEV_PATH
+
+#else
+static int
+mrb_file_is_absolute_path(const char *path)
+{
+  return (path[0] == *(char*)(FILE_SEPARATOR));
+}
+#endif
 
 static mrb_value
 mrb_file__gethome(mrb_state *mrb, mrb_value klass)
@@ -319,7 +367,7 @@ mrb_file__gethome(mrb_state *mrb, mrb_value klass)
   path = mrb_str_new_cstr(mrb, home);
   mrb_locale_free(home);
   return path;
-#else
+#else  /* _WIN32 */
   argc = mrb_get_argc(mrb);
   if (argc == 0) {
     home = getenv("USERPROFILE");
