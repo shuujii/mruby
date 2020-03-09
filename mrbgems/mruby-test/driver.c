@@ -23,6 +23,8 @@ extern const uint8_t mrbtest_assert_irep[];
 void mrbgemtest_init(mrb_state* mrb);
 void mrb_init_test_vformat(mrb_state* mrb);
 
+typedef void (*mrb_general_hook_t)(mrb_state*);
+
 /* Print a short remark for the user */
 static void
 print_hint(void)
@@ -276,6 +278,61 @@ mrb_t_pass_result(mrb_state *mrb_dst, mrb_state *mrb_src)
       mrb_ary_push(mrb_dst, res_dst, mrb_str_new(mrb_dst, RSTRING_PTR(val_src), RSTRING_LEN(val_src)));
     }
   }
+}
+
+void
+mrb_run_test_file(mrb_state *mrb,
+                  const uint8_t *test_preload_irep,
+                  const uint8_t *test_irep,
+                  mrb_value test_args,
+                  mrb_general_hook_t custom_init_func,
+                  mrb_value gem_name,
+                  int gem_deps_size,
+                  ...)
+{
+  int ai, i;
+  va_list ap;
+  mrb_value verbose;
+  mrb_state *mrb2;
+
+  ai = mrb_gc_arena_save(mrb);
+  mrb2 = mrb_open_core(mrb_default_allocf, NULL);
+  if (mrb2 == NULL) {
+    fprintf(stderr, "Invalid mrb_state, exiting %s", __FUNCTION__);
+    exit(EXIT_FAILURE);
+  }
+
+  va_start(ap, gem_deps_size);
+  for (i = 0; i < gem_deps_size; ++i) {
+    mrb_general_hook_t gem_dep_init = va_arg(ap, mrb_general_hook_t);
+    mrb_general_hook_t gem_dep_final = va_arg(ap, mrb_general_hook_t);
+    gem_dep_init(mrb2);
+    mrb_state_atexit(mrb2, gem_dep_final);
+  }
+  va_end(ap);
+
+  verbose = mrb_gv_get(mrb, mrb_intern_lit(mrb, "$mrbtest_verbose"));
+  mrb_init_test_driver(mrb2, mrb_test(verbose));
+  mrb_load_irep(mrb2, test_preload_irep);
+  if (mrb2->exc) {
+    mrb_print_error(mrb2);
+    mrb_close(mrb2);
+    exit(EXIT_FAILURE);
+  }
+
+  mrb_const_set(mrb2, mrb_obj_value(mrb2->object_class),
+                mrb_intern_lit(mrb2, "GEMNAME"), gem_name);
+  if (!mrb_undef_p(test_args)) {
+    mrb_const_set(mrb2, mrb_obj_value(mrb2->object_class),
+                  mrb_intern_lit(mrb2, "TEST_ARGS"), test_args);
+  }
+
+  if (custom_init_func) custom_init_func(mrb2);
+  mrb_load_irep(mrb2, test_irep);
+
+  mrb_t_pass_result(mrb, mrb2);
+  mrb_close(mrb2);
+  mrb_gc_arena_restore(mrb, ai);
 }
 
 int

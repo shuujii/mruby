@@ -330,18 +330,17 @@ module MRuby
     def run(out, infiles, funcname, static: false)
       @command ||= @build.mrbcfile
       infiles = [infiles].flatten
-      infiles.each do |f|
-        _pp "MRBC", f.relative_path, indent: 2
+      infiles.each_with_index do |f, i|
+        _pp i == 0 ? "MRBC" : "", f.relative_path, indent: 2
       end
       opt = @compile_options % {flag: static ? "b" : "B", funcname: funcname}
       cmd = "#{filename @command} #{opt} #{filename(infiles).join(' ')}"
       puts cmd if Rake.verbose
-      IO.popen(cmd, 'r+') do |io|
-        out.puts io.read
-      end
+      IO.popen(cmd, 'r+') {|io| out << io.read}
       unless $?.success?
         fail "Command failed with status (#{$?.exitstatus}): [#{cmd[0,42]}...]"
       end
+      out
     rescue Exception
       # if mrbc execution fail, drop the file
       rm_f out.path

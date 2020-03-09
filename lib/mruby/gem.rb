@@ -207,6 +207,7 @@ module MRuby
       def generate_gem_init(fname)
         File.open(fname, 'w') do |f|
           print_gem_init_header f
+          _pp "GEN", fname.relative_path
           build.mrbc.run f, rbfiles, "gem_mrblib_irep_#{funcname}" unless rbfiles.empty?
           f.puts %Q[void mrb_#{funcname}_gem_init(mrb_state *mrb);]
           f.puts %Q[void mrb_#{funcname}_gem_final(mrb_state *mrb);]
