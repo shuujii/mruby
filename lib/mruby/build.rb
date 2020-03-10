@@ -70,19 +70,9 @@ module MRuby
       end
 
       def define_builder
-        linker_args = Array.new(5){[]}
-        MRuby.each_target do |build|
-          build.gems.each do |gem|
-            linker_args[0] << gem.linker.libraries
-            linker_args[1] << gem.linker.library_paths
-            linker_args[2] << gem.linker.flags
-            linker_args[3] << gem.linker.flags_before_libraries
-            linker_args[4] << gem.linker.flags_after_libraries
-          end
-        end
-
         MRuby.each_target.map do |build|
-          [ build.gems.map {|gem| gem.define_builder(*linker_args)},
+          linker_attrs = build.gem_linker_attrs
+          [ build.gems.map {|gem| gem.define_builder(*linker_attrs)},
             build.bins.map do |bin|
               install_path = build.exefile("#{MRUBY_INSTALL_DIR}/#{bin}")
               source_path = build.exefile("#{build.build_dir}/bin/#{bin}")
@@ -421,6 +411,10 @@ EOS
 
     def libraries
       [libmruby_static]
+    end
+
+    def gem_linker_attrs
+      gems.map{|g| g.linker.run_attrs}.transpose
     end
 
     def main?

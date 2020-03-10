@@ -196,7 +196,7 @@ module MRuby
       [libraries, _libraries].flatten.map!{ |d| option_library % d }.join(' ')
     end
 
-    def run_args
+    def run_attrs
       [@libraries, @library_paths, @flags, @flags_before_libraries, @flags_after_libraries]
     end
 

@@ -15,6 +15,7 @@ MRuby::Gem::Specification.new('mruby-test') do |spec|
     g.test_objs.dup << g.test_rbireps.ext(exts.object)
   end << assert_obj
   mrbtest_lib = libfile("#{build_dir}/mrbtest")
+  linker_attrs = build.gem_linker_attrs
 
   build.gems.each do |g|
     file g.test_rbireps.ext(exts.object) => g.test_rbireps
@@ -143,13 +144,7 @@ void
     active_gems_txt = "#{build_dir}/active_gems.txt"
 
     file exe => [*driver_objs, mrbtest_obj, mrbtest_lib, build.libmruby_static] do |t|
-      gem_flags = build.gems.map { |g| g.linker.flags }
-      gem_flags_before_libraries = build.gems.map { |g| g.linker.flags_before_libraries }
-      gem_flags_after_libraries = build.gems.map { |g| g.linker.flags_after_libraries }
-      gem_libraries = build.gems.map { |g| g.linker.libraries }
-      gem_library_paths = build.gems.map { |g| g.linker.library_paths }
-      build.linker.run t.name, t.prerequisites, gem_libraries, gem_library_paths, gem_flags,
-                       gem_flags_before_libraries, gem_flags_after_libraries
+      linker.run t.name, t.prerequisites, *linker_attrs
     end
 
     file mrbtest_obj => mrbtest_c
