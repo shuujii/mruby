@@ -144,7 +144,7 @@ void
     active_gems_txt = "#{build_dir}/active_gems.txt"
 
     file exe => [*driver_objs, mrbtest_obj, mrbtest_lib, build.libmruby_static] do |t|
-      linker.run t.name, t.prerequisites, *linker_attrs
+      build.linker.run t.name, t.prerequisites, *linker_attrs
     end
 
     file mrbtest_obj => mrbtest_c
