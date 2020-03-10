@@ -180,7 +180,7 @@ mrbgemtest_init(mrb_state* mrb)
         File.write(t.name, active_gems)
         updated = true
       end
-      t.singleton_class.define_method(:timestamp) do
+      t.singleton_class.send(:define_method, :foo) do
         Time.at(updated ? Float::MAX : 0)
       end
     end
