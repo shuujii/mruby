@@ -64,11 +64,11 @@ extern const uint8_t <%=assert_irep%>[];
 typedef void (*mrb_general_hook_t)(mrb_state*);
 
 %   gem_deps.each do |d|
-void <%=gem_gen_func(d, :init)%>(mrb_state *mrb);
-void <%=gem_gen_func(d, :final)%>(mrb_state *mrb);
+void <%=d.generated_hook_funcname(:init)%>(mrb_state *mrb);
+void <%=d.generated_hook_funcname(:final)%>(mrb_state *mrb);
 %   end
 %   if g.custom_test_init?
-void <%=gem_func(g, :test)%>(mrb_state *mrb);
+void <%=g.hook_funcname(:test)%>(mrb_state *mrb);
 %   end
 void mrb_run_test_file(mrb_state *mrb,
                        mrb_value gem_name,
@@ -80,7 +80,7 @@ void mrb_run_test_file(mrb_state *mrb,
 % end
 
 void
-<%=gem_gen_func(g, :test)%>(mrb_state *mrb)
+<%=g.generated_hook_funcname(:test)%>(mrb_state *mrb)
 {
 % unless test_rbs.empty?
   mrb_value gem_name = mrb_obj_freeze(mrb, mrb_str_new_lit(mrb, "<%=g.name%>"));
@@ -89,8 +89,8 @@ void
 %   else
   const mrb_general_hook_t gem_dep_hooks[] = {
 %     gem_deps.each do |d|
-    <%=gem_gen_func(d, :init)%>,
-    <%=gem_gen_func(d, :final)%>,
+    <%=d.generated_hook_funcname(:init)%>,
+    <%=d.generated_hook_funcname(:final)%>,
 %     end
     NULL
   };
@@ -113,7 +113,7 @@ void
   mrb_run_test_file(
     mrb, gem_name, gem_dep_hooks,
 %     if g.custom_test_init?
-    <%=gem_func(g, :test)%>,
+    <%=g.hook_funcname(:test)%>,
 %     else
     NULL,
 %     end
@@ -155,7 +155,7 @@ void
     file mrbtest_obj => mrbtest_c
     file mrbtest_c => [active_gems_txt, build.mrbcfile, __FILE__] do |t|
       _pp "GEN", t.name.relative_path
-      erb <<-EOS, t.name
+      erb <<-'EOS', t.name
 /*
  * This file contains a list of all test functions.
  *
@@ -166,14 +166,14 @@ struct mrb_state;
 typedef struct mrb_state mrb_state;
 
 % build.gems.each do |g|
-void <%=gem_gen_func(g, :test)%>(mrb_state *mrb);
+void <%=g.generated_hook_funcname(:test)%>(mrb_state *mrb);
 % end
 
 void
 mrbgemtest_init(mrb_state* mrb)
 {
 % build.gems.each do |g|
-  <%=gem_gen_func(g, :test)%>(mrb);
+  <%=g.generated_hook_funcname(:test)%>(mrb);
 % end
 }
       EOS
@@ -189,14 +189,6 @@ mrbgemtest_init(mrb_state* mrb)
         Time.at(updated ? Float::MAX : 0)
       end
     end
-  end
-
-  def gem_func(gem, type)
-    "mrb_#{gem.funcname}_gem_#{type}"
-  end
-
-  def gem_gen_func(gem, type)
-    "GENERATED_TMP_#{gem_func(gem, type)}"
   end
 
   def c_str_literal(obj)

@@ -146,7 +146,15 @@ module MRuby
       end
 
       def funcname
-        @funcname ||= @name.gsub('-', '_')
+        @funcname ||= @name.tr('-', '_')
+      end
+
+      def hook_funcname(type)
+        "mrb_#{funcname}_gem_#{type}"
+      end
+
+      def generated_hook_funcname(type)
+        "GENERATED_TMP_#{hook_funcname(type)}"
       end
 
       def compilers
@@ -205,59 +213,54 @@ module MRuby
       end
 
       def generate_gem_init(fname)
-        File.open(fname, 'w') do |f|
-          print_gem_init_header f
-          _pp "GEN", fname.relative_path
-          build.mrbc.run f, rbfiles, "gem_mrblib_irep_#{funcname}" unless rbfiles.empty?
-          f.puts %Q[void mrb_#{funcname}_gem_init(mrb_state *mrb);]
-          f.puts %Q[void mrb_#{funcname}_gem_final(mrb_state *mrb);]
-          f.puts %Q[]
-          f.puts %Q[void GENERATED_TMP_mrb_#{funcname}_gem_init(mrb_state *mrb) {]
-          f.puts %Q[  int ai = mrb_gc_arena_save(mrb);]
-          f.puts %Q[  mrb_#{funcname}_gem_init(mrb);] if objs != [objfile("#{build_dir}/gem_init")]
-          unless rbfiles.empty?
-            f.puts %Q[  mrb_load_irep(mrb, gem_mrblib_irep_#{funcname});]
-            f.puts %Q[  if (mrb->exc) {]
-            f.puts %Q[    mrb_print_error(mrb);]
-            f.puts %Q[    mrb_close(mrb);]
-            f.puts %Q[    exit(EXIT_FAILURE);]
-            f.puts %Q[  }]
-          end
-          f.puts %Q[  mrb_gc_arena_restore(mrb, ai);]
-          f.puts %Q[}]
-          f.puts %Q[]
-          f.puts %Q[void GENERATED_TMP_mrb_#{funcname}_gem_final(mrb_state *mrb) {]
-          f.puts %Q[  mrb_#{funcname}_gem_final(mrb);] if objs != [objfile("#{build_dir}/gem_init")]
-          f.puts %Q[}]
-        end
-      end # generate_gem_init
+        _pp "GEN", fname.relative_path
+        erb <<-'EOS', fname
+/*
+ * This file is loading the irep Ruby GEM code.
+ *
+ * IMPORTANT: This file was generated! All manual changes will get lost.
+ */
 
-      def print_gem_comment(f)
-        f.puts %Q[/*]
-        f.puts %Q[ * This file is loading the irep]
-        f.puts %Q[ * Ruby GEM code.]
-        f.puts %Q[ *]
-        f.puts %Q[ * IMPORTANT:]
-        f.puts %Q[ *   This file was generated!]
-        f.puts %Q[ *   All manual changes will get lost.]
-        f.puts %Q[ */]
-      end
+% if rbfiles.empty?
+#include <mruby.h>
 
-      def print_gem_init_header(f)
-        print_gem_comment(f)
-        f.puts %Q[#include <stdlib.h>] unless rbfiles.empty?
-        f.puts %Q[#include <mruby.h>]
-        f.puts %Q[#include <mruby/irep.h>] unless rbfiles.empty?
-      end
+% else
+%   irep = "mrblib_irep"
+#include <stdlib.h>
+#include <mruby.h>
+#include <mruby/irep.h>
 
-      def print_gem_test_header(f)
-        print_gem_comment(f)
-        f.puts %Q[#include <stdio.h>]
-        f.puts %Q[#include <stdlib.h>]
-        f.puts %Q[#include <mruby.h>]
-        f.puts %Q[#include <mruby/irep.h>]
-        f.puts %Q[#include <mruby/variable.h>]
-        f.puts %Q[#include <mruby/hash.h>] unless test_args.empty?
+<%=mrbc.run "", rbfiles, irep, static: true%>
+% end
+void <%=hook_funcname(:init)%>(mrb_state *mrb);
+void <%=hook_funcname(:final)%>(mrb_state *mrb);
+
+void
+<%=generated_hook_funcname(:init)%>(mrb_state *mrb)
+{
+  int ai = mrb_gc_arena_save(mrb);
+% unless objs == [objfile("#{build_dir}/gem_init")]
+  <%=hook_funcname(:init)%>(mrb);
+% end
+% unless rbfiles.empty?
+  mrb_load_irep(mrb, <%=irep%>);
+  if (mrb->exc) {
+    mrb_print_error(mrb);
+    mrb_close(mrb);
+    exit(EXIT_FAILURE);
+  }
+% end
+  mrb_gc_arena_restore(mrb, ai);
+}
+
+void
+<%=generated_hook_funcname(:final)%>(mrb_state *mrb)
+{
+% unless objs == [objfile("#{build_dir}/gem_init")]
+  <%=hook_funcname(:final)%>(mrb);
+% end
+}
+        EOS
       end
 
       def test_dependencies
