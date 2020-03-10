@@ -71,54 +71,53 @@ void <%=gem_gen_func(d, :final)%>(mrb_state *mrb);
 void <%=gem_func(g, :test)%>(mrb_state *mrb);
 %   end
 void mrb_run_test_file(mrb_state *mrb,
+                       mrb_value gem_name,
+                       const mrb_general_hook_t *gem_dep_hooks,
+                       mrb_general_hook_t custom_init_func,
                        const uint8_t *test_preload_irep,
                        const uint8_t *test_irep,
-                       mrb_value test_args,
-                       mrb_general_hook_t custom_init_func,
-                       mrb_value gem_name,
-                       int gem_deps_size,
-                       ...);
+                       mrb_value test_args);
 % end
 
 void
 <%=gem_gen_func(g, :test)%>(mrb_state *mrb)
 {
 % unless test_rbs.empty?
-  mrb_value test_args, gem_name;
-
-%   if g.test_args.empty?
-  test_args = mrb_undef_value();
+  mrb_value gem_name = mrb_obj_freeze(mrb, mrb_str_new_lit(mrb, "<%=g.name%>"));
+%   if gem_deps.empty?
+  const mrb_general_hook_t *gem_dep_hooks = NULL;
 %   else
-  test_args = mrb_hash_new_capa(mrb, <%=g.test_args.size%>);
+  const mrb_general_hook_t gem_dep_hooks[] = {
+%     gem_deps.each do |d|
+    <%=gem_gen_func(d, :init)%>,
+    <%=gem_gen_func(d, :final)%>,
+%     end
+    NULL
+  };
+%   end
+%   if g.test_args.empty?
+  mrb_value test_args = mrb_undef_value();
+%   else
+  mrb_value test_args = mrb_hash_new_capa(mrb, <%=g.test_args.size%>);
+
 %     g.test_args.each do |k, v|
   mrb_hash_set(
-    mrb,
-    test_args,
+    mrb, test_args,
     mrb_obj_freeze(mrb, mrb_str_new_lit(mrb, <%=c_str_literal(k)%>)),
     mrb_obj_freeze(mrb, mrb_str_new_lit(mrb, <%=c_str_literal(v)%>)));
 %     end
 %   end
-  gem_name = mrb_obj_freeze(mrb, mrb_str_new_lit(mrb, "<%=g.name%>"));
 
 %   test_rbs.zip(test_ireps) do |rb, irep|
   /* <%=rb.relative_path%> */
   mrb_run_test_file(
-    mrb,
-    <%=test_preload_irep%>,
-    <%=irep%>,
-    test_args,
+    mrb, gem_name, gem_dep_hooks,
 %     if g.custom_test_init?
     <%=gem_func(g, :test)%>,
 %     else
     NULL,
 %     end
-    gem_name,
-%     if gem_deps.empty?
-    0);
-%     else
-    <%=gem_deps.size%>,
-    <%=gem_deps.flat_map{|d| [gem_gen_func(d, :init), gem_gen_func(d, :final)]}  * ",\n    "%>);
-%     end
+    <%=test_preload_irep%>, <%=irep%>, test_args);
 %   end
 % end
 }

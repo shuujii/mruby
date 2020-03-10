@@ -211,7 +211,7 @@ m_str_match_p(mrb_state *mrb, mrb_value self)
   return mrb_bool_value(str_match_p(mrb, pat, pat_len, str, str_len));
 }
 
-void
+static void
 mrb_init_test_driver(mrb_state *mrb, mrb_bool verbose)
 {
   struct RClass *krn, *mrbtest;
@@ -241,7 +241,7 @@ mrb_init_test_driver(mrb_state *mrb, mrb_bool verbose)
   }
 }
 
-void
+static void
 mrb_t_pass_result(mrb_state *mrb_dst, mrb_state *mrb_src)
 {
   mrb_value res_src;
@@ -282,18 +282,17 @@ mrb_t_pass_result(mrb_state *mrb_dst, mrb_state *mrb_src)
 
 void
 mrb_run_test_file(mrb_state *mrb,
+                  mrb_value gem_name,
+                  const mrb_general_hook_t *gem_dep_hooks,
+                  mrb_general_hook_t custom_init_func,
                   const uint8_t *test_preload_irep,
                   const uint8_t *test_irep,
-                  mrb_value test_args,
-                  mrb_general_hook_t custom_init_func,
-                  mrb_value gem_name,
-                  int gem_deps_size,
-                  ...)
+                  mrb_value test_args)
 {
-  int ai, i;
-  va_list ap;
-  mrb_value verbose;
+  int ai;
   mrb_state *mrb2;
+  const mrb_general_hook_t *hookp;
+  mrb_value verbose;
 
   ai = mrb_gc_arena_save(mrb);
   mrb2 = mrb_open_core(mrb_default_allocf, NULL);
@@ -302,14 +301,12 @@ mrb_run_test_file(mrb_state *mrb,
     exit(EXIT_FAILURE);
   }
 
-  va_start(ap, gem_deps_size);
-  for (i = 0; i < gem_deps_size; ++i) {
-    mrb_general_hook_t gem_dep_init = va_arg(ap, mrb_general_hook_t);
-    mrb_general_hook_t gem_dep_final = va_arg(ap, mrb_general_hook_t);
-    gem_dep_init(mrb2);
-    mrb_state_atexit(mrb2, gem_dep_final);
+  if (gem_dep_hooks) {
+    for (hookp = gem_dep_hooks; *hookp; hookp += 2) {
+      (hookp[0])(mrb2);                  /* init */
+      mrb_state_atexit(mrb2, hookp[1]);  /* final */
+    }
   }
-  va_end(ap);
 
   verbose = mrb_gv_get(mrb, mrb_intern_lit(mrb, "$mrbtest_verbose"));
   mrb_init_test_driver(mrb2, mrb_test(verbose));
