@@ -196,6 +196,10 @@ module MRuby
       [libraries, _libraries].flatten.map!{ |d| option_library % d }.join(' ')
     end
 
+    def run_args
+      [@libraries, @library_paths, @flags, @flags_before_libraries, @flags_after_libraries]
+    end
+
     def run(outfile, objfiles, _libraries=[], _library_paths=[], _flags=[], _flags_before_libraries=[], _flags_after_libraries=[])
       mkdir_p File.dirname(outfile)
       library_flags = [libraries, _libraries].flatten.map! { |d| option_library % d }
