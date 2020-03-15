@@ -173,15 +173,13 @@ mrbgemtest_init(mrb_state* mrb)
 }
       EOS
     end
-    task active_gems_txt do |t|
+    file active_gems_txt => :generate_active_gems_txt
+    task :generate_active_gems_txt do |t|
+      def t.timestamp; Time.at(0) end
       active_gems = build.gems.sort_by(&:name).inject(""){|s, g| s << "#{g.name}\n"}
-      if !File.exist?(t.name) || active_gems != File.read(t.name)
-        mkdir_p File.dirname(t.name)
-        File.write(t.name, active_gems)
-        updated = true
-      end
-      t.singleton_class.send(:define_method, :foo) do
-        Time.at(updated ? Float::MAX : 0)
+      if !File.exist?(active_gems_txt) || File.read(active_gems_txt) != active_gems
+        mkdir_p File.dirname(active_gems_txt)
+        File.write(active_gems_txt, active_gems)
       end
     end
   end
