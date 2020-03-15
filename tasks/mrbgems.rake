@@ -10,21 +10,17 @@ MRuby.each_target do |build|
     legal = "#{build.build_dir}/LEGAL"
     init_c = "#{build.build_dir}/mrbgems/gem_init.c"
     init_obj = build.objfile(init_c.pathmap("%X"))
-    init_gems = build.gems.select(&:generate_functions)
     build.libmruby_objs << init_obj
     file init_obj => [init_c, legal]
     file init_c => [__FILE__, :generate_mrbgems_gem_init_c]
     task :generate_mrbgems_gem_init_c do |t|
       def t.timestamp; Time.at(0) end
-      code = erb <<-'EOS', init_gems: init_gems
+      code = erb <<-'EOS', init_gems: build.gems.select(&:generate_functions)
 /*
- * This file contains a list of all
- * initializing methods which are
- * necessary to bootstrap all gems.
+ * This file contains a list of all initializing methods which are necessary
+ * to bootstrap all gems.
  *
- * IMPORTANT:
- *   This file was generated!
- *   All manual changes will get lost.
+ * IMPORTANT: This file was generated! All manual changes will get lost.
  */
 
 #include <mruby.h>
@@ -56,6 +52,7 @@ mrb_init_mrbgems(mrb_state *mrb)
 }
       EOS
       if !File.exist?(init_c) || File.read(init_c) != code
+        _pp "GEN", init_c.relative_path
         mkdir_p File.dirname(init_c)
         File.write(init_c, code)
       end
