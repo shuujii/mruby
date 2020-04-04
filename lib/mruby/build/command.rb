@@ -340,7 +340,7 @@ module MRuby
       opt = @compile_options % {flag: static ? "b" : "B", funcname: funcname}
       cmd = "#{filename @command} #{opt} #{filename(infiles).join(' ')}"
       puts cmd if Rake.verbose
-      IO.popen(cmd, 'r+') {|io| out << io.read}
+      out << IO.popen(cmd, &:read)
       unless $?.success?
         fail "Command failed with status (#{$?.exitstatus}): [#{cmd[0,42]}...]"
       end
