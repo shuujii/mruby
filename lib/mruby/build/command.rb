@@ -24,17 +24,9 @@ module MRuby
       target
     end
 
-    NotFoundCommands = {}
-
     private
     def _run(options, params={})
-      return sh command + ' ' + ( options % params ) if NotFoundCommands.key? @command
-      begin
-        sh build.filename(command) + ' ' + ( options % params )
-      rescue RuntimeError
-        NotFoundCommands[@command] = true
-        _run options, params
-      end
+      sh "#{build.filename(command)} #{options % params}"
     end
   end
 
