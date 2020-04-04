@@ -43,7 +43,7 @@ task :all => depfiles do
   MRuby::Lockfile.write
 end
 
-desc "run all mruby tests"
+desc "build and run all mruby tests"
 task :test => "test:build" do
   Rake::Task["test:run"].invoke
 end
