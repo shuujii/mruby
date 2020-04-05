@@ -417,6 +417,14 @@ EOS
       gems.map{|g| g.linker.run_attrs}.transpose
     end
 
+    def for_windows?
+      if kind_of?(MRuby::CrossBuild)
+        host_target =~ /\A(?:x86_64|i686)-w64-mingw32\z/
+      else
+        RUBY_PLATFORM =~ /mingw|mswin|msys/
+      end
+    end
+
     def main?
       self.class.main == self
     end

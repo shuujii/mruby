@@ -7,12 +7,11 @@ MRuby::Gem::Specification.new('mruby-socket') do |spec|
   #spec.cc.defines << "HAVE_SA_LEN=0"
 
   # If Windows, use winsock
-  if for_windows?
+  if build.for_windows?
     spec.linker.libraries << "wsock32"
     spec.linker.libraries << "ws2_32"
   end
 
   spec.add_dependency('mruby-io', :core => 'mruby-io')
   spec.add_dependency('mruby-pack', :core => 'mruby-pack')
-  # spec.add_dependency('mruby-mtest')
 end
