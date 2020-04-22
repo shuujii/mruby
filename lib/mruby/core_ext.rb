@@ -39,19 +39,22 @@ def erb(template=nil, from: nil, to: nil, context: self, locals: {})
     from = "(eval)"
   end
   terms = template.split(/^(%)(.*?)(?:\n|\z) | (<%=)(.*?)%>/mx)
-  code = "proc{|out__,locals__|\n".dup
-  locals.each_key {|k| code << "#{k}=locals__[:#{k}]\n"}
+  code = "proc{|out__,locals__| ".dup
+  locals.each_key {|k| code << "#{k}=locals__[:#{k}]; "}
   while term = terms.shift
     next if term.empty?
     case term
-    when "%"; code << terms.shift
-    when "<%="; code << "out__<<(#{terms.shift}).to_s"
-    else code << "out__<<#{term.dump}"
+    when "%"
+      code << "#{terms.shift}\n"
+    when "<%="
+      code << "out__<<(#{terms.shift}).to_s; "
+    else
+      term.each_line do |line|
+        code << "out__<<#{line.dump}#{line.end_with?(?\n) ? ?\n : '; '}"
+      end
     end
-    code << "\n"
   end
-  code << "out__\n"
-  code << "}.('',locals)"
+  code << "out__}.('',locals)"
   result = context.instance_eval(code, from)
   if to
     dir = File.dirname(to)
