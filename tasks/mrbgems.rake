@@ -15,7 +15,8 @@ MRuby.each_target do |build|
     file init_c => [__FILE__, :generate_mrbgems_gem_init_c]
     task :generate_mrbgems_gem_init_c do |t|
       def t.timestamp; Time.at(0) end
-      code = erb <<-'EOS', init_gems: build.gems.select(&:generate_functions)
+      locals = {init_gems: build.gems.select(&:generate_functions)}
+      code = erb <<-'EOS', locals: locals
 /*
  * This file contains a list of all initializing methods which are necessary
  * to bootstrap all gems.
@@ -61,7 +62,7 @@ mrb_init_mrbgems(mrb_state *mrb)
 
   # legal documents
   file legal => init_c do
-    erb <<-'EOS', legal, build: build
+    erb <<-'EOS', to: legal, locals: {build: build}
 % year = Time.now.year
 Copyright (c) <%=year%> mruby developers
 

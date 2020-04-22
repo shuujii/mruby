@@ -126,8 +126,16 @@ module MRuby
       end
 
       def srcs_to_objs(src_dir)
-        Dir["#{dir}/#{src_dir}/*.{c,cpp,cxx,cc}"].map do |f|
-          objfile(f.relative_path_from(dir).to_s.pathmap("#{build_dir}/%X"))
+        Dir["#{dir}/#{src_dir}/*.{c,cpp,cxx,cc}{,.erb}"].map do |src|
+          if File.extname(src)
+            tmplt = src
+            src = tmplt.ext
+            file src => tmplt do
+              _pp "GEN", tmplt.relative_path, src.relative_path
+              erb from: tmplt, to: src
+            end
+          end
+          objfile(src.relative_path_from(dir).to_s.pathmap("#{build_dir}/%X"))
         end
       end
 
@@ -215,7 +223,7 @@ module MRuby
 
       def generate_gem_init(fname)
         _pp "GEN", fname.relative_path
-        erb <<-'EOS', fname
+        erb <<-'EOS', to: fname
 /*
  * This file is loading the irep Ruby GEM code.
  *

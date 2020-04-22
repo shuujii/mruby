@@ -29,19 +29,15 @@ def install_D(src, dst)
 end
 
 #
-# call-seq:
-#   erb(template)
-#   erb(template, to)
-#   erb(template, locals)
-#   erb(template, to, context)
-#   erb(template, to, locals)
-#   erb(template, to, context, locals)
-#
 # Supported tags are only `<%=...%>` and `%` at the beginning of the line.
 #
-def erb(template, to=nil, context=self, locals={})
-  to, locals = nil, to if to.kind_of?(Hash)
-  context, locals = self, context if context.kind_of?(Hash)
+def erb(template=nil, from: nil, to: nil, context: self, locals: {})
+  if from
+    template = File.read(from)
+  else
+    raise ArgumentError, "need 'template' or 'from'" unless template
+    from = "(eval)"
+  end
   terms = template.split(/^(%)(.*?)(?:\n|\z) | (<%=)(.*?)%>/mx)
   code = "proc{|out__,locals__|\n".dup
   locals.each_key {|k| code << "#{k}=locals__[:#{k}]\n"}
@@ -56,7 +52,7 @@ def erb(template, to=nil, context=self, locals={})
   end
   code << "out__\n"
   code << "}.('',locals)"
-  result = context.instance_eval(code)
+  result = context.instance_eval(code, from)
   if to
     dir = File.dirname(to)
     mkdir_p dir unless File.exist?(dir)
