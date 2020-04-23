@@ -78,34 +78,21 @@ module MRuby
     def define_rules(build_dir, source_dir='')
       @out_ext = build.exts.object
       gemrake = File.join(source_dir, "mrbgem.rake")
-      rakedep = File.exist?(gemrake) ? [ gemrake ] : []
-
-      if build_dir.include? "mrbgems/"
-        generated_file_matcher = Regexp.new("^#{Regexp.escape build_dir}/(.*)#{Regexp.escape out_ext}$")
-      else
-        generated_file_matcher = Regexp.new("^#{Regexp.escape build_dir}/(?!mrbgems/.+/)(.*)#{Regexp.escape out_ext}$")
-      end
-      source_exts.each do |ext, compile|
-        rule generated_file_matcher => [
-          proc { |file|
-            file.sub(generated_file_matcher, "#{source_dir}/\\1#{ext}")
-          },
-          proc { |file|
-            get_dependencies(file) + rakedep
-          }
-        ] do |t|
-          run t.name, t.source
-        end
-
-        rule generated_file_matcher => [
-          proc { |file|
-            file.sub(generated_file_matcher, "#{build_dir}/\\1#{ext}")
-          },
-          proc { |file|
-            get_dependencies(file) + rakedep
-          }
-        ] do |t|
-          run t.name, t.source
+      rakedep = File.exist?(gemrake) ? [gemrake] : []
+      escaped_build_dir = Regexp.escape(build_dir)
+      escaped_obj_ext = Regexp.escape(out_ext)
+      obj_re = build_dir.include?("mrbgems/") ?
+        %r{^#{escaped_build_dir}/(.*)#{escaped_obj_ext}$} :
+        %r{^#{escaped_build_dir}/(?!mrbgems/.+/)(.*)#{escaped_obj_ext}$}
+      deps_proc = ->(obj){get_dependencies(obj).concat(rakedep)}
+      source_exts.each do |ext, _|
+        [source_dir, build_dir].each do |base_dir|
+          rule obj_re => [
+            ->(obj){"#{base_dir}/#{obj.sub(obj_re,'\1')}#{ext}"},
+            deps_proc
+          ] do |t|
+            run t.name, t.source
+          end
         end
       end
     end

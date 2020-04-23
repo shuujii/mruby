@@ -19,7 +19,7 @@ MRUBY_CONFIG = (ENV['MRUBY_CONFIG'] && ENV['MRUBY_CONFIG'] != '') ? ENV['MRUBY_C
 load MRUBY_CONFIG
 
 # load basic rules
-MRuby::Build.each {|build| build.define_rules}
+MRuby::Build.each(&:define_rules)
 
 # load custom rules
 load "#{MRUBY_ROOT}/tasks/core.rake"

@@ -4,7 +4,7 @@ MRuby::Toolchain.new(:gcc) do |conf, params|
   c_mandatory_flags = %w(-std=gnu99)
   cxx_invalid_flags = %w(-Wdeclaration-after-statement -Werror-implicit-function-declaration)
 
-  [conf.cc, conf.objc, conf.asm, conf.cxx].each do |compiler|
+  conf.compilers.each do |compiler|
     if compiler == conf.cxx
       compiler.command = ENV['CXX'] || default_command.sub(/cc|$/, '++')
       compiler.flags = [ENV['CXXFLAGS'] || ENV['CFLAGS'] || compiler_flags]
@@ -35,8 +35,8 @@ MRuby::Toolchain.new(:gcc) do |conf, params|
     def cc.header_search_paths
       if @header_search_command != command
         result = `echo | #{build.filename command} -x#{@header_search_language} -Wp,-v - -fsyntax-only 2>&1`
-        result = `echo | #{command} -x#{@header_search_language} -Wp,-v - -fsyntax-only 2>&1` if $?.exitstatus != 0
-        return include_paths if  $?.exitstatus != 0
+        result = `echo | #{command} -x#{@header_search_language} -Wp,-v - -fsyntax-only 2>&1` unless $?.success?
+        return include_paths unless $?.success?
 
         @frameworks = []
         @header_search_paths = result.lines.map { |v|
