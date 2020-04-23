@@ -127,15 +127,16 @@ module MRuby
 
       def srcs_to_objs(src_dir)
         Dir["#{dir}/#{src_dir}/*.{c,cpp,cxx,cc}{,.erb}"].map do |src|
-          if File.extname(src)
+          obj_dir = "#{build_dir}/#{File.dirname(src.relative_path_from(dir))}"
+          if File.extname(src) == ".erb"
             tmplt = src
-            src = tmplt.ext
+            src = "#{obj_dir}/#{File.basename(tmplt).ext}"
             file src => tmplt do
-              _pp "GEN", tmplt.relative_path, src.relative_path
+              _pp "ERB", tmplt.relative_path, src.relative_path
               erb from: tmplt, to: src
             end
           end
-          objfile(src.relative_path_from(dir).to_s.pathmap("#{build_dir}/%X"))
+          objfile("#{obj_dir}/#{File.basename(src).ext}")
         end
       end
 
