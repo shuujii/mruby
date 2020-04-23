@@ -46,7 +46,7 @@ module MRuby
     include LoadGems
 
     COMPILERS = %w(cc cxx objc asm)
-    COMMANDS = COMPILERS + %w(linker archiver yacc gperf git mrbc)
+    COMMANDS = COMPILERS + %w(linker archiver yacc gperf git mrbc exts)
     Exts = Struct.new(:object, :executable, :library)
 
     class << self
