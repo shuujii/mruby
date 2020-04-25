@@ -645,6 +645,43 @@ mrb_io_initialize_copy(mrb_state *mrb, mrb_value copy)
   return copy;
 }
 
+static void
+check_file_descriptor(mrb_state *mrb, mrb_int fd)
+{
+  struct stat sb;
+  int fdi = (int)fd;
+
+#if MRB_INT_MIN < INT_MIN || MRB_INT_MAX > INT_MAX
+  if (fdi != fd) {
+    goto badfd;
+  }
+#endif
+
+#ifdef _WIN32
+  {
+    DWORD err;
+    int len = sizeof(err);
+
+    if (getsockopt(fdi, SOL_SOCKET, SO_ERROR, (char*)&err, &len) == 0) {
+      return;
+    }
+  }
+
+  if (fdi < 0 || fdi > _getmaxstdio()) {
+    goto badfd;
+  }
+#endif /* _WIN32 */
+
+  if (fstat(fdi, &sb) != 0) {
+    goto badfd;
+  }
+
+  return;
+
+badfd:
+  mrb_sys_fail(mrb, "bad file descriptor");
+}
+
 mrb_value
 mrb_io_initialize(mrb_state *mrb, mrb_value io)
 {
@@ -656,6 +693,7 @@ mrb_io_initialize(mrb_state *mrb, mrb_value io)
   mode = opt = mrb_nil_value();
 
   mrb_get_args(mrb, "i|oo", &fd, &mode, &opt);
+  check_file_descriptor(mrb, fd);
   if (mrb_nil_p(mode)) {
     mode = mrb_str_new_cstr(mrb, "r");
   }
@@ -1155,6 +1193,7 @@ mrb_io_s_select(mrb_state *mrb, mrb_value klass)
     for (i = 0; i < RARRAY_LEN(read); i++) {
       read_io = RARRAY_PTR(read)[i];
       fptr = io_get_open_fptr(mrb, read_io);
+      if (fptr->fd >= FD_SETSIZE) continue;
       FD_SET(fptr->fd, rp);
       if (mrb_io_read_data_pending(mrb, read_io)) {
         pending++;
@@ -1177,6 +1216,7 @@ mrb_io_s_select(mrb_state *mrb, mrb_value klass)
     FD_ZERO(wp);
     for (i = 0; i < RARRAY_LEN(write); i++) {
       fptr = io_get_open_fptr(mrb, RARRAY_PTR(write)[i]);
+      if (fptr->fd >= FD_SETSIZE) continue;
       FD_SET(fptr->fd, wp);
       if (max < fptr->fd)
         max = fptr->fd;
@@ -1196,6 +1236,7 @@ mrb_io_s_select(mrb_state *mrb, mrb_value klass)
     FD_ZERO(ep);
     for (i = 0; i < RARRAY_LEN(except); i++) {
       fptr = io_get_open_fptr(mrb, RARRAY_PTR(except)[i]);
+      if (fptr->fd >= FD_SETSIZE) continue;
       FD_SET(fptr->fd, ep);
       if (max < fptr->fd)
         max = fptr->fd;

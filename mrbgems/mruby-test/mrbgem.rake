@@ -21,7 +21,7 @@ MRuby::Gem::Specification.new('mruby-test') do |spec|
     file g.test_rbireps.ext(exts.object) => g.test_rbireps
     file g.test_rbireps => [g.test_rbfiles, build.mrbcfile, __FILE__].flatten do |t|
       _pp "GEN", t.name.relative_path
-      erb <<-'EOS', t.name, assert_irep: assert_irep, g: g
+      erb <<-'EOS', to: t.name, locals: {assert_irep: assert_irep, g: g}
 %
 % test_rbs = g.test_rbfiles.flatten
 % test_ireps = test_rbs.map.with_index{|rb, i| "test_irep_#{i}"}
@@ -150,7 +150,7 @@ void
     file mrbtest_obj => mrbtest_c
     file mrbtest_c => [active_gems_txt, build.mrbcfile, __FILE__] do |t|
       _pp "GEN", t.name.relative_path
-      erb <<-'EOS', t.name
+      erb <<-'EOS', to: t.name
 /*
  * This file contains a list of all test functions.
  *

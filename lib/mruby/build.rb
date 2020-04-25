@@ -46,7 +46,7 @@ module MRuby
     include LoadGems
 
     COMPILERS = %w(cc cxx objc asm)
-    COMMANDS = COMPILERS + %w(linker archiver yacc gperf git exts mrbc)
+    COMMANDS = COMPILERS + %w(linker archiver yacc gperf git mrbc exts)
     Exts = Struct.new(:object, :executable, :library)
 
     class << self
@@ -320,14 +320,6 @@ EOS
       end
     end
 
-    def cygwin_filename(name)
-      if name.is_a?(Array)
-        name.flatten.map! { |n| cygwin_filename(n) }
-      else
-        '"%s"' % `cygpath -w "#{filename(name)}"`.strip
-      end
-    end
-
     def exefile(name)
       if name.is_a?(Array)
         name.flatten.map! { |n| exefile(n) }
@@ -415,6 +407,14 @@ EOS
 
     def gem_linker_attrs
       gems.map{|g| g.linker.run_attrs}.transpose
+    end
+
+    def for_windows?
+      if kind_of?(MRuby::CrossBuild)
+        host_target =~ /\A(?:x86_64|i686)-w64-mingw32\z/
+      else
+        RUBY_PLATFORM =~ /mingw|mswin|msys/
+      end
     end
 
     def main?

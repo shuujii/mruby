@@ -19,7 +19,7 @@ MRUBY_CONFIG = (ENV['MRUBY_CONFIG'] && ENV['MRUBY_CONFIG'] != '') ? ENV['MRUBY_C
 load MRUBY_CONFIG
 
 # load basic rules
-MRuby::Build.each {|build| build.define_rules}
+MRuby::Build.each(&:define_rules)
 
 # load custom rules
 load "#{MRUBY_ROOT}/tasks/core.rake"
@@ -43,7 +43,7 @@ task :all => depfiles do
   MRuby::Lockfile.write
 end
 
-desc "run all mruby tests"
+desc "build and run all mruby tests"
 task :test => "test:build" do
   Rake::Task["test:run"].invoke
 end

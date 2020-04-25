@@ -4,7 +4,7 @@ module MRuby
   class Command
     include Rake::DSL
     extend Forwardable
-    def_delegators :@build, :filename, :objfile, :libfile, :exefile, :cygwin_filename
+    def_delegators :@build, :filename, :objfile, :libfile, :exefile
     attr_accessor :build, :command
 
     def initialize(build)
@@ -24,17 +24,9 @@ module MRuby
       target
     end
 
-    NotFoundCommands = {}
-
     private
     def _run(options, params={})
-      return sh command + ' ' + ( options % params ) if NotFoundCommands.key? @command
-      begin
-        sh build.filename(command) + ' ' + ( options % params )
-      rescue RuntimeError
-        NotFoundCommands[@command] = true
-        _run options, params
-      end
+      sh "#{build.filename(command)} #{options % params}"
     end
   end
 
@@ -71,11 +63,7 @@ module MRuby
     def all_flags(_defines=[], _include_paths=[], _flags=[])
       define_flags = [defines, _defines].flatten.map!{ |d| option_define % d }
       include_path_flags = [include_paths, _include_paths].flatten.map! do |f|
-        if MRUBY_BUILD_HOST_IS_CYGWIN
-          option_include_path % cygwin_filename(f)
-        else
-          option_include_path % filename(f)
-        end
+        option_include_path % filename(f)
       end
       [flags, define_flags, include_path_flags, _flags].flatten.join(' ')
     end
@@ -83,46 +71,28 @@ module MRuby
     def run(outfile, infile, _defines=[], _include_paths=[], _flags=[])
       mkdir_p File.dirname(outfile)
       _pp "CC", infile.relative_path, outfile.relative_path
-      if MRUBY_BUILD_HOST_IS_CYGWIN
-        _run compile_options, { :flags => all_flags(_defines, _include_paths, _flags),
-                                :infile => cygwin_filename(infile), :outfile => cygwin_filename(outfile) }
-      else
-        _run compile_options, { :flags => all_flags(_defines, _include_paths, _flags),
-                                :infile => filename(infile), :outfile => filename(outfile) }
-      end
+      _run compile_options, { :flags => all_flags(_defines, _include_paths, _flags),
+                              :infile => filename(infile), :outfile => filename(outfile) }
     end
 
     def define_rules(build_dir, source_dir='')
       @out_ext = build.exts.object
       gemrake = File.join(source_dir, "mrbgem.rake")
-      rakedep = File.exist?(gemrake) ? [ gemrake ] : []
-
-      if build_dir.include? "mrbgems/"
-        generated_file_matcher = Regexp.new("^#{Regexp.escape build_dir}/(.*)#{Regexp.escape out_ext}$")
-      else
-        generated_file_matcher = Regexp.new("^#{Regexp.escape build_dir}/(?!mrbgems/.+/)(.*)#{Regexp.escape out_ext}$")
-      end
-      source_exts.each do |ext, compile|
-        rule generated_file_matcher => [
-          proc { |file|
-            file.sub(generated_file_matcher, "#{source_dir}/\\1#{ext}")
-          },
-          proc { |file|
-            get_dependencies(file) + rakedep
-          }
-        ] do |t|
-          run t.name, t.source
-        end
-
-        rule generated_file_matcher => [
-          proc { |file|
-            file.sub(generated_file_matcher, "#{build_dir}/\\1#{ext}")
-          },
-          proc { |file|
-            get_dependencies(file) + rakedep
-          }
-        ] do |t|
-          run t.name, t.source
+      rakedep = File.exist?(gemrake) ? [gemrake] : []
+      escaped_build_dir = Regexp.escape(build_dir)
+      escaped_obj_ext = Regexp.escape(out_ext)
+      obj_re = build_dir.include?("mrbgems/") ?
+        %r{^#{escaped_build_dir}/(.*)#{escaped_obj_ext}$} :
+        %r{^#{escaped_build_dir}/(?!mrbgems/.+/)(.*)#{escaped_obj_ext}$}
+      deps_proc = ->(obj){get_dependencies(obj).concat(rakedep)}
+      source_exts.each do |ext, _|
+        [source_dir, build_dir].each do |base_dir|
+          rule obj_re => [
+            ->(obj){"#{base_dir}/#{obj.sub(obj_re,'\1')}#{ext}"},
+            deps_proc
+          ] do |t|
+            run t.name, t.source
+          end
         end
       end
     end
@@ -183,11 +153,7 @@ module MRuby
 
     def all_flags(_library_paths=[], _flags=[])
       library_path_flags = [library_paths, _library_paths].flatten.map! do |f|
-        if MRUBY_BUILD_HOST_IS_CYGWIN
-          option_library_path % cygwin_filename(f)
-        else
-          option_library_path % filename(f)
-        end
+        option_library_path % filename(f)
       end
       [flags, library_path_flags, _flags].flatten.join(' ')
     end
@@ -205,19 +171,11 @@ module MRuby
       library_flags = [libraries, _libraries].flatten.map! { |d| option_library % d }
 
       _pp "LD", outfile.relative_path
-      if MRUBY_BUILD_HOST_IS_CYGWIN
-        _run link_options, { :flags => all_flags(_library_paths, _flags),
-                             :outfile => cygwin_filename(outfile) , :objs => cygwin_filename(objfiles).join(' '),
-                             :flags_before_libraries => [flags_before_libraries, _flags_before_libraries].flatten.join(' '),
-                             :flags_after_libraries => [flags_after_libraries, _flags_after_libraries].flatten.join(' '),
-                             :libs => library_flags.join(' ') }
-      else
-        _run link_options, { :flags => all_flags(_library_paths, _flags),
-                             :outfile => filename(outfile) , :objs => filename(objfiles).join(' '),
-                             :flags_before_libraries => [flags_before_libraries, _flags_before_libraries].flatten.join(' '),
-                             :flags_after_libraries => [flags_after_libraries, _flags_after_libraries].flatten.join(' '),
-                             :libs => library_flags.join(' ') }
-      end
+      _run link_options, { :flags => all_flags(_library_paths, _flags),
+                           :outfile => filename(outfile) , :objs => filename(objfiles).join(' '),
+                           :flags_before_libraries => [flags_before_libraries, _flags_before_libraries].flatten.join(' '),
+                           :flags_after_libraries => [flags_after_libraries, _flags_after_libraries].flatten.join(' '),
+                           :libs => library_flags.join(' ') }
     end
   end
 
@@ -233,11 +191,7 @@ module MRuby
     def run(outfile, objfiles)
       mkdir_p File.dirname(outfile)
       _pp "AR", outfile.relative_path
-      if MRUBY_BUILD_HOST_IS_CYGWIN
-        _run archive_options, { :outfile => cygwin_filename(outfile), :objs => cygwin_filename(objfiles).join(' ') }
-      else
-        _run archive_options, { :outfile => filename(outfile), :objs => filename(objfiles).join(' ') }
-      end
+      _run archive_options, { :outfile => filename(outfile), :objs => filename(objfiles).join(' ') }
     end
   end
 
@@ -340,7 +294,7 @@ module MRuby
       opt = @compile_options % {flag: static ? "b" : "B", funcname: funcname}
       cmd = "#{filename @command} #{opt} #{filename(infiles).join(' ')}"
       puts cmd if Rake.verbose
-      IO.popen(cmd, 'r+') {|io| out << io.read}
+      out << IO.popen(cmd, &:read)
       unless $?.success?
         fail "Command failed with status (#{$?.exitstatus}): [#{cmd[0,42]}...]"
       end

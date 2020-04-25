@@ -29,34 +29,33 @@ def install_D(src, dst)
 end
 
 #
-# call-seq:
-#   erb(template)
-#   erb(template, to)
-#   erb(template, locals)
-#   erb(template, to, context)
-#   erb(template, to, locals)
-#   erb(template, to, context, locals)
-#
 # Supported tags are only `<%=...%>` and `%` at the beginning of the line.
 #
-def erb(template, to=nil, context=self, locals={})
-  to, locals = nil, to if to.kind_of?(Hash)
-  context, locals = self, context if context.kind_of?(Hash)
+def erb(template=nil, from: nil, to: nil, context: self, locals: {})
+  if from
+    template = File.read(from)
+  else
+    raise ArgumentError, "need 'template' or 'from'" unless template
+    from = "(eval)"
+  end
   terms = template.split(/^(%)(.*?)(?:\n|\z) | (<%=)(.*?)%>/mx)
-  code = "proc{|out__,locals__|\n".dup
-  locals.each_key {|k| code << "#{k}=locals__[:#{k}]\n"}
+  code = "proc{|out__,locals__| ".dup
+  locals.each_key {|k| code << "#{k}=locals__[:#{k}]; "}
   while term = terms.shift
     next if term.empty?
     case term
-    when "%"; code << terms.shift
-    when "<%="; code << "out__<<(#{terms.shift}).to_s"
-    else code << "out__<<#{term.dump}"
+    when "%"
+      code << "#{terms.shift}\n"
+    when "<%="
+      code << "out__<<(#{terms.shift}).to_s; "
+    else
+      term.each_line do |line|
+        code << "out__<<#{line.dump}#{line.end_with?(?\n) ? ?\n : '; '}"
+      end
     end
-    code << "\n"
   end
-  code << "out__\n"
-  code << "}.('',locals)"
-  result = context.instance_eval(code)
+  code << "out__}.('',locals)"
+  result = context.instance_eval(code, from)
   if to
     dir = File.dirname(to)
     mkdir_p dir unless File.exist?(dir)
