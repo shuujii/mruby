@@ -301,7 +301,7 @@ module MRuby
       out
     rescue Exception
       # if mrbc execution fail, drop the file
-      rm_f out.path
+      rm_f out.path if File === out
       raise
     end
   end
