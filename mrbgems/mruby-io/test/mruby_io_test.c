@@ -1,6 +1,7 @@
 #include <mruby/common.h>
 #include <sys/types.h>
 #include <errno.h>
+#include <string.h>
 
 #if defined(_WIN32) || defined(_WIN64)
 
@@ -8,7 +9,6 @@
 #include <io.h>
 #include <fcntl.h>
 #include <direct.h>
-#include <string.h>
 #include <stdlib.h>
 #include <malloc.h>
 
@@ -53,7 +53,6 @@ mkdtemp(char *temp)
   #include <sys/socket.h>
   #include <unistd.h>
   #include <sys/un.h>
-  #include <assert.h>
   #include <fcntl.h>
 #endif
 
@@ -73,7 +72,7 @@ int socket_available_p;
 #if !defined(_WIN32) && !defined(_WIN64)
 static int mrb_io_socket_available()
 {
-  int fd, retval = 1;
+  int fd, retval = 0;
   struct sockaddr_un sun0;
   char socketname[] = "tmp.mruby-io-socket-ok.XXXXXXXX";
   if (!(fd = mkstemp(socketname))) {
@@ -87,11 +86,10 @@ static int mrb_io_socket_available()
   }
   sun0.sun_family = AF_UNIX;
   strncpy(sun0.sun_path, socketname, sizeof(sun0.sun_path));
-  if (bind(fd, (struct sockaddr *)&sun0, sizeof(sun0)) == -1) {
-    retval = 0;
+  if (bind(fd, (struct sockaddr *)&sun0, sizeof(sun0)) == 0) {
+    retval = 1;
   }
 sock_test_out:
-  retval = 0;
   unlink(socketname);
   close(fd);
   return retval;
@@ -118,10 +116,8 @@ mrb_io_test_io_setup(mrb_state *mrb, mrb_value self)
     char *tmpdir;
     wd_save = open(".", O_DIRECTORY);
     tmpdir = getenv("TMPDIR");
-    if (tmpdir)
-      assert(!chdir(tmpdir));
-    else
-      assert(!chdir("/tmp"));
+    if (tmpdir) chdir(tmpdir);
+    else chdir("/tmp");
   }
 #endif
 
@@ -221,7 +217,7 @@ mrb_io_test_io_cleanup(mrb_state *mrb, mrb_value self)
 
 #if !defined(_WIN32) && !defined(_WIN64)
   if(!socket_available_p) {
-    assert(!fchdir(wd_save));
+    fchdir(wd_save);
     close(wd_save);
   }
 #endif
