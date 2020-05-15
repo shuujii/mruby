@@ -9,7 +9,6 @@
 #ifdef PARSER_DEBUG
 # define YYDEBUG 1
 #endif
-#define YYERROR_VERBOSE 1
 #define YYSTACK_USE_ALLOCA 1
 
 #include <ctype.h>
@@ -1325,6 +1324,7 @@ heredoc_end(parser_state *p)
 
 %}
 
+%define parse.error verbose
 %define api.pure
 %parse-param {parser_state *p}
 %lex-param {parser_state *p}
