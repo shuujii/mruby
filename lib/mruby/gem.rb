@@ -190,7 +190,8 @@ module MRuby
         current_dir = dir.relative_path_from(Dir.pwd)
         relative_from_root = dir.relative_path_from(MRUBY_ROOT)
         current_build_dir = File.expand_path "#{build.build_dir}/#{relative_from_root}"
-        bins.map do |bin|
+        execs = []
+        bins.each do |bin|
           exec = exefile("#{build.build_dir}/bin/#{bin}")
           objs = Dir["#{current_dir}/tools/#{bin}/*.{c,cpp,cxx,cc}"].map do |f|
             objfile(f.pathmap("#{current_build_dir}/tools/#{bin}/%n"))
@@ -207,19 +208,20 @@ module MRuby
             file install_path => exec do |t|
               install_D t.source, t.name
             end
-            install_path
+            execs << install_path
           elsif build.name == 'host-debug'
             unless MRuby::Build['host'].gems.map{|g| g.bins}.include?([bin])
               install_path = exefile("#{MRUBY_INSTALL_DIR}/#{bin}")
               file install_path => exec do |t|
                 install_D t.source, t.name
               end
-              install_path
+              execs << install_path
             end
           else
-            exec
+            execs << exec
           end
         end
+        execs
       end
 
       def generate_gem_init(fname)
