@@ -187,14 +187,11 @@ module MRuby
 
       def define_builder(linker_libraries, linker_library_paths, linker_flags,
                          linker_flags_before_libraries, linker_flags_after_libraries)
-        current_dir = dir.relative_path_from(Dir.pwd)
-        relative_from_root = dir.relative_path_from(MRUBY_ROOT)
-        current_build_dir = File.expand_path "#{build.build_dir}/#{relative_from_root}"
         execs = []
         bins.each do |bin|
           exec = exefile("#{build.build_dir}/bin/#{bin}")
-          objs = Dir["#{current_dir}/tools/#{bin}/*.{c,cpp,cxx,cc}"].map do |f|
-            objfile(f.pathmap("#{current_build_dir}/tools/#{bin}/%n"))
+          objs = Dir["#{dir}/tools/#{bin}/*.{c,cpp,cxx,cc}"].map do |f|
+            objfile(f.pathmap("#{build_dir}/tools/#{bin}/%n"))
           end
 
           file exec => objs + libraries do |t|

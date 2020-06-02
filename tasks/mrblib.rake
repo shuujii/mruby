@@ -1,8 +1,8 @@
 MRuby.each_target do |build|
   obj = build.objfile("#{build.build_dir}/mrblib/mrblib")
   mrblib_c = "#{build.build_dir}/mrblib/mrblib.c"
-  init_mrblib_c = "mrblib/init_mrblib.c"
-  rbfiles = Dir["mrblib/*.rb"].sort
+  init_mrblib_c = "#{MRUBY_ROOT}/mrblib/init_mrblib.c"
+  rbfiles = Dir["#{MRUBY_ROOT}/mrblib/*.rb"].sort
 
   build.libmruby_objs << obj
 
