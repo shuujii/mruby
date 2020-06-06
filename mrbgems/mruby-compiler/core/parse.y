@@ -265,6 +265,7 @@ local_unnest(parser_state *p)
 static mrb_bool
 local_var_p(parser_state *p, mrb_sym sym)
 {
+  struct RProc *u;
   node *l = p->locals;
 
   while (l) {
@@ -274,6 +275,18 @@ local_var_p(parser_state *p, mrb_sym sym)
       n = n->cdr;
     }
     l = l->cdr;
+  }
+
+  u = p->upper;
+  while (u && !MRB_PROC_CFUNC_P(u)) {
+    struct mrb_irep *ir = u->body.irep;
+    uint_fast16_t n = ir->nlocals;
+    const struct mrb_locals *v = ir->lv;
+    for (; n > 1; n --, v ++) {
+      if (v->name == sym) return TRUE;
+    }
+    if (MRB_PROC_SCOPE_P(u)) break;
+    u = u->upper;
   }
   return FALSE;
 }
@@ -6187,7 +6200,7 @@ parser_init_cxt(parser_state *p, mrbc_context *cxt)
   }
   p->capture_errors = cxt->capture_errors;
   p->no_optimize = cxt->no_optimize;
-  p->on_eval = cxt->on_eval;
+  p->upper = cxt->upper;
   if (cxt->partial_hook) {
     p->cxt = cxt;
   }
@@ -6606,7 +6619,7 @@ dump_args(mrb_state *mrb, node *n, int offset)
 static const char*
 str_dump(mrb_state *mrb, const char *str, int len)
 {
-  mrb_int ai = mrb_gc_arena_save(mrb);
+  int ai = mrb_gc_arena_save(mrb);
   mrb_value s;
 # if INT_MAX > MRB_INT_MAX / 4
   /* check maximum length with "\xNN" charactor */
