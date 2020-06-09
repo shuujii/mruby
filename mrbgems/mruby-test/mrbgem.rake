@@ -129,6 +129,7 @@ void
   file assert_obj => assert_c
   file assert_c => [assert_rb, build.mrbcfile] do |t|
     _pp "GEN", t.name.relative_path
+    mkdir_p File.dirname(t.name)
     File.open(t.name, 'w') {|f| mrbc.run f, assert_rb, assert_irep}
   end
 
