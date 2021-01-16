@@ -4,8 +4,8 @@
 ** See Copyright Notice in mruby.h
 */
 
-#undef DPUT
-#define DPUT(fmt,args...) (void)0
+//#undef DPUT
+//#define DPUT(fmt,args...) (void)0
 
 #include <mruby.h>
 #include <mruby/array.h>
@@ -249,8 +249,6 @@ iv_expand(mrb_state *mrb, iv_tbl **tp)
 static void
 iv_free(mrb_state *mrb, iv_tbl *t)
 {
-DPUTN("iv_free t: %p", t);
-if (t) DPUTN("iv_free capa: %u", iv_capa(t));
   if (t) mrb_free(mrb, iv_vals(t));
 }
 
@@ -258,26 +256,16 @@ if (t) DPUTN("iv_free capa: %u", iv_capa(t));
 static void
 iv_put(mrb_state *mrb, iv_tbl **tp, mrb_sym sym, mrb_value val)
 {
-DPUTN("sym: %" PRIu32, sym);
   uint16_t size;
   if (*tp) {
     size = iv_size(*tp);
-DPUTN("size1: %" PRIu16, size);
-DPUTN("capa1: %" PRIu32, iv_capa(*tp));
     if (size == iv_capa(*tp)) iv_expand(mrb, tp);
   }
   else {
     size = 0;
-DPUTN("size1: %" PRIu16, size);
     *tp = iv_new(mrb, 1);
   }
-DPUTN("*tp: %p", *tp);
-DPUTN("capa2: %" PRIu32, iv_capa(*tp));
   iv_each_by_sym(*tp, sym, it, {
-DPUTN("it->idx: %" PRIu16, it->idx);
-DPUTN("it->mask: %" PRIu16, it->mask);
-DPUTN("it->step: %" PRIu16, it->step);
-
     if (iv_it_sym(it) == sym) {
       iv_it_set(it, sym, val);
       break;
@@ -289,7 +277,6 @@ DPUTN("it->step: %" PRIu16, it->step);
       break;
     }
   });
-DPUTN("size2: %" PRIu16, size);
 }
 
 /* Get a value for a symbol from the instance variable table. */
