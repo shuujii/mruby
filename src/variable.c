@@ -403,6 +403,13 @@ obj_iv_p(mrb_value obj)
   }
 }
 
+static iv_tbl*
+class_iv(struct RClass *c)
+{
+  return c->tt == MRB_TT_ICLASS && !(c->flags & MRB_FL_CLASS_IS_ORIGIN) ?
+    c->c->iv : c->iv;
+}
+
 MRB_API mrb_value
 mrb_obj_iv_get(mrb_state *mrb, struct RObject *obj, mrb_sym sym)
 {
@@ -687,10 +694,16 @@ mrb_mod_class_variables(mrb_state *mrb, mrb_value mod)
   mrb_get_args(mrb, "|b", &inherit);
   ary = mrb_ary_new(mrb);
   c = mrb_class_ptr(mod);
-  while (c) {
-    iv_foreach(mrb, c->iv, cv_i, &ary);
-    if (!inherit) break;
-    c = c->super;
+//  while (c) {
+//    iv_foreach(mrb, c->iv, cv_i, &ary);
+//    if (!inherit) break;
+//    c = c->super;
+//  }
+  iv_foreach(mrb, c->iv, cv_i, &ary);
+  if (inherit) {
+    while ((c = c->super)) {
+      iv_foreach(mrb, class_iv(c), cv_i, &ary);
+    }
   }
   return ary;
 }
@@ -702,26 +715,32 @@ mrb_mod_cv_get(mrb_state *mrb, struct RClass *c, mrb_sym sym)
   mrb_value v;
   int given = FALSE;
 
-  while (c) {
-    if (iv_get(mrb, c->iv, sym, &v)) {
-      given = TRUE;
-    }
-    c = c->super;
-  }
+//  while (c) {
+//    if (iv_get(mrb, c->iv, sym, &v)) {
+//      given = TRUE;
+//    }
+//    c = c->super;
+//  }
+  do {
+    if (iv_get(mrb, class_iv(c), sym, &v)) given = TRUE;
+  } while ((c = c->super));
   if (given) return v;
-  if (cls && cls->tt == MRB_TT_SCLASS) {
+  if (cls->tt == MRB_TT_SCLASS) {
     mrb_value klass;
 
     klass = mrb_obj_iv_get(mrb, (struct RObject *)cls, MRB_SYM(__attached__));
     c = mrb_class_ptr(klass);
     if (c->tt == MRB_TT_CLASS || c->tt == MRB_TT_MODULE) {
-      given = FALSE;
-      while (c) {
-        if (iv_get(mrb, c->iv, sym, &v)) {
-          given = TRUE;
-        }
-        c = c->super;
-      }
+//      given = FALSE;
+//      while (c) {
+//        if (iv_get(mrb, c->iv, sym, &v)) {
+//          given = TRUE;
+//        }
+//        c = c->super;
+//      }
+      do {
+        if (iv_get(mrb, class_iv(c), sym, &v)) given = TRUE;
+      } while ((c = c->super));
       if (given) return v;
     }
   }
@@ -784,11 +803,14 @@ mrb_cv_set(mrb_state *mrb, mrb_value mod, mrb_sym sym, mrb_value v)
 mrb_bool
 mrb_mod_cv_defined(mrb_state *mrb, struct RClass * c, mrb_sym sym)
 {
-  while (c) {
-    iv_tbl *t = c->iv;
-    if (iv_get(mrb, t, sym, NULL)) return TRUE;
-    c = c->super;
-  }
+//  while (c) {
+//    iv_tbl *t = c->iv;
+//    if (iv_get(mrb, t, sym, NULL)) return TRUE;
+//    c = c->super;
+//  }
+  do {
+    if (iv_get(mrb, class_iv(c), sym, NULL)) return TRUE;
+  } while ((c = c->super));
 
   return FALSE;
 }
@@ -851,11 +873,14 @@ const_get(mrb_state *mrb, struct RClass *base, mrb_sym sym)
   mrb_value name;
 
 L_RETRY:
-  while (c) {
-    if (iv_get(mrb, c->iv, sym, &v))
-      return v;
-    c = c->super;
-  }
+//  while (c) {
+//    if (iv_get(mrb, c->iv, sym, &v))
+//      return v;
+//    c = c->super;
+//  }
+  do {
+    if (iv_get(mrb, class_iv(c), sym, &v)) return v;
+  } while ((c = c->super));
   if (!retry && base->tt == MRB_TT_MODULE) {
     c = mrb->object_class;
     retry = TRUE;
@@ -992,11 +1017,17 @@ mrb_mod_constants(mrb_state *mrb, mrb_value mod)
 
   mrb_get_args(mrb, "|b", &inherit);
   ary = mrb_ary_new(mrb);
-  while (c) {
-    iv_foreach(mrb, c->iv, const_i, &ary);
-    if (!inherit) break;
-    c = c->super;
-    if (c == mrb->object_class) break;
+//  while (c) {
+//    iv_foreach(mrb, c->iv, const_i, &ary);
+//    if (!inherit) break;
+//    c = c->super;
+//    if (c == mrb->object_class) break;
+//  }
+  iv_foreach(mrb, c->iv, const_i, &ary);
+  if (inherit) {
+    while ((c = c->super) != mrb->object_class) {
+      iv_foreach(mrb, class_iv(c), const_i, &ary);
+    }
   }
   return ary;
 }
@@ -1062,12 +1093,18 @@ mrb_const_defined_0(mrb_state *mrb, mrb_value mod, mrb_sym id, mrb_bool exclude,
 
   tmp = klass;
 retry:
-  while (tmp) {
-    if (iv_get(mrb, tmp->iv, id, NULL)) {
-      return TRUE;
+//  while (tmp) {
+//    if (iv_get(mrb, tmp->iv, id, NULL)) {
+//      return TRUE;
+//    }
+//    if (!recurse && (klass != mrb->object_class)) break;
+//    tmp = tmp->super;
+//  }
+  if (iv_get(mrb, tmp->iv, id, NULL)) return TRUE;
+  if (recurse || klass == mrb->object_class) {
+    while ((tmp = tmp->super)) {
+      if (iv_get(mrb, class_iv(tmp), id, NULL)) return TRUE;
     }
-    if (!recurse && (klass != mrb->object_class)) break;
-    tmp = tmp->super;
   }
   if (!exclude && !mod_retry && (klass->tt == MRB_TT_MODULE)) {
     mod_retry = TRUE;
