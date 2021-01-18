@@ -43,7 +43,7 @@ typedef struct iv_tbl_iter {
 
 #define IV_INIT_CAPA 1
 #define IV_MAX_CAPA (U32(UINT16_MAX) + 1)
-#define IV_MAX_SIZE (IV_MAX_CAPA - 1)
+#define IV_MAX_SIZE UINT16_MAX
 #define IV_EMPTY_SYM UINT32_MAX
 #define IV_DELETED_SYM (IV_EMPTY_SYM - 1)
 
