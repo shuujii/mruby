@@ -18,15 +18,14 @@
  *                                           iv_tbl* --.
  *                                                      \
  *           +---------+---------+---+-------+-------+---o--------+--------+
- *      Type |mrb_value|mrb_value|...|mrb_sym|mrb_sym|...|uint16_t|uint16_t|
+ *   Type    |mrb_value|mrb_value|...|mrb_sym|mrb_sym|...|uint16_t|uint16_t|
  *           +---------+---------+---+-------+-------+---+--------+--------+
  *   Content |  val 1  |  val 2  |...| sym 1 | sym 2 |...|  size  | capa_1 |
  *           +---------+---------+---+-------+-------+---+--------+--------+
  *
- *     - Only `val` and only `sym` are contiguous to eliminate structure
- *       padding.
- *     - `val` is placed at the beginning to align it at 8-byte boundary.
- *     - `capa_1` means "capacity - 1".
+ *   - Only `val` and only `sym` are contiguous to eliminate structure padding.
+ *   - `val` is placed at the beginning to align it at 8-byte boundary.
+ *   - `capa_1` means "capacity - 1".
  */
 typedef struct iv_tbl {
   char dummy1;
