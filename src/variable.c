@@ -236,7 +236,7 @@ iv_put(mrb_state *mrb, iv_tbl **tp, mrb_sym sym, mrb_value val)
   }
   else {
     size = 0;
-    *tp = iv_new(mrb, 1);
+    *tp = iv_new(mrb, IV_INIT_CAPA);
   }
   iv_each_by_sym(*tp, sym, it, {
     if (iv_it_sym(it) == sym) {
