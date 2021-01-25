@@ -1365,7 +1365,6 @@ include_class_new(mrb_state *mrb, struct RClass *m, struct RClass *super)
     m = m->c;
   }
   MRB_CLASS_ORIGIN(m);
-  ic->iv = m->iv;
   ic->mt = m->mt;
   ic->super = super;
   if (m->tt == MRB_TT_ICLASS) {
