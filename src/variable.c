@@ -50,27 +50,25 @@ typedef struct iv_tbl_iter {
 #define U16P(p) ((uint16_t*)(p))
 #define U32(v) ((uint32_t)(v))
 
+#define sym_hash_code(sym) U32((sym) ^ ((sym) << 2) ^ ((sym) >> 2))
 #define iv_size_ptr(t) U16P(t)
 #define iv_capa_1_ptr(t) U16P((t) + sizeof(uint16_t))
 #define iv_syms(t) ((mrb_sym*)((t) - sizeof(mrb_sym) * iv_capa(t)))
 #define iv_vals(t) ((mrb_value*)((t) - iv_offset_for(iv_capa(t))))
 
-#define iv_each_by_sym(t, sym, it_var, code) do {                             \
-  uint32_t capa__ = iv_capa(t), i__ = 0;                                      \
+#define iv_each_by_hash_code(t, hash_code, it_var, code) do {                 \
+  uint32_t capa__ = iv_capa(t);                                               \
   iv_tbl_iter it_var[1];                                                      \
-  iv_it_init_by_sym(it_var, t, sym);                                          \
-  for (; i__ < capa__; iv_it_next_by_sym(it_var), ++i__) {                    \
+  iv_it_init_by_hash_code(it_var, t, hash_code);                              \
+  for (; capa__; iv_it_next_by_hash_code(it_var), --capa__) {                 \
     code;                                                                     \
   }                                                                           \
 } while (0)
 
-#define iv_each_active(t, it_var, code) do {                                  \
-  uint16_t size__ = iv_size(t);                                               \
+#define iv_cycle(t, it_var, code) do {                                        \
   iv_tbl_iter it_var[1];                                                      \
   iv_it_init(it_var, t);                                                      \
-  for (; size__; iv_it_next(it_var)) {                                        \
-    if (!iv_it_active_p(it_var)) continue;                                    \
-    --size__;                                                                 \
+  for (; TRUE; iv_it_next(it_var)) {                                          \
     code;                                                                     \
   }                                                                           \
 } while (0)
@@ -93,12 +91,12 @@ iv_it_init(iv_tbl_iter *it, iv_tbl *t)
 }
 
 static void
-iv_it_init_by_sym(iv_tbl_iter *it, iv_tbl *t, mrb_sym sym)
+iv_it_init_by_hash_code(iv_tbl_iter *it, iv_tbl *t, uint32_t hash_code)
 {
   it->mask = *iv_capa_1_ptr(t);
   it->syms = iv_syms(t);
   it->vals = iv_vals(t);
-  it->idx = iv_it_idx_for(it, sym ^ (sym << 2) ^ (sym >> 2));
+  it->idx = iv_it_idx_for(it, hash_code);
   it->step = 0;
 }
 
@@ -109,7 +107,7 @@ iv_it_next(iv_tbl_iter *it)
 }
 
 static void
-iv_it_next_by_sym(iv_tbl_iter *it)
+iv_it_next_by_hash_code(iv_tbl_iter *it)
 {
   it->idx = iv_it_idx_for(it, it->idx + (++it->step));
 }
@@ -201,18 +199,21 @@ static void
 iv_expand(mrb_state *mrb, iv_tbl **tp)
 {
   iv_tbl *t = *tp;
-  uint32_t capa = iv_capa(t) * 2;
-  if (capa > IV_MAX_CAPA) return;
-  iv_tbl *new_t = iv_new(mrb, capa);
+  uint32_t capa = iv_capa(t), new_capa = capa * 2;
+  mrb_assert(capa < IV_MAX_CAPA);
+  mrb_assert(capa == iv_size(t));
+  iv_tbl *new_t = iv_new(mrb, new_capa);
   iv_set_size(new_t, iv_size(t));
-  iv_set_capa(new_t, capa);
-  iv_each_active(t, it, {
+  iv_set_capa(new_t, new_capa);
+  iv_cycle(t, it, {
+    mrb_assert(iv_it_active_p(it));
     mrb_sym sym = iv_it_sym(it);
-    iv_each_by_sym(new_t, sym, new_it, {
+    iv_each_by_hash_code(new_t, sym_hash_code(sym), new_it, {
       if (!iv_it_empty_p(new_it)) continue;
       iv_it_set(new_it, sym, iv_it_val(it));
       break;
     });
+    if (!--capa) break;
   });
   mrb_free(mrb, iv_vals(t));
   *tp = new_t;
@@ -229,27 +230,37 @@ iv_free(mrb_state *mrb, iv_tbl *t)
 static void
 iv_put(mrb_state *mrb, iv_tbl **tp, mrb_sym sym, mrb_value val)
 {
-  uint16_t size;
-  if (*tp) {
-    size = iv_size(*tp);
-    if (size == iv_capa(*tp)) iv_expand(mrb, tp);
-  }
-  else {
-    size = 0;
+  if (!*tp) {
     *tp = iv_new(mrb, IV_INIT_CAPA);
+    if (IV_INIT_CAPA == 1) {
+      iv_syms(*tp)[0] = sym;
+      iv_vals(*tp)[0] = val;
+      iv_set_size(*tp, 1);
+      return;
+    }
   }
-  iv_each_by_sym(*tp, sym, it, {
+  uint16_t size = iv_size(*tp);
+  uint32_t hash_code = sym_hash_code(sym);
+  iv_each_by_hash_code(*tp, hash_code, it, {
     if (iv_it_sym(it) == sym) {
       iv_it_set(it, sym, val);
-      break;
+      return;
     }
     if (!iv_it_active_p(it)) {
-      if (size == IV_MAX_SIZE) mrb_raise(mrb, E_ARGUMENT_ERROR, "iv_tbl too big");
+      if (size == IV_MAX_SIZE) mrb_raise(mrb, E_ARGUMENT_ERROR, "iv_tbl too big");;
       iv_it_set(it, sym, val);
       iv_set_size(*tp, ++size);
-      break;
+      return;
     }
   });
+  iv_expand(mrb, tp);
+  iv_each_by_hash_code(*tp, hash_code, it, {
+    if (!iv_it_empty_p(it)) continue;
+    iv_it_set(it, sym, val);
+    iv_set_size(*tp, ++size);
+    return;
+  });
+  mrb_assert("not reached");
 }
 
 /* Get a value for a symbol from the instance variable table. */
@@ -257,7 +268,7 @@ static mrb_bool
 iv_get(const iv_tbl *t, mrb_sym sym, mrb_value *valp)
 {
   if (!t) return FALSE;
-  iv_each_by_sym((iv_tbl*)t, sym, it, {
+  iv_each_by_hash_code((iv_tbl*)t, sym_hash_code(sym), it, {
     if (iv_it_empty_p(it)) return FALSE;
     if (iv_it_sym(it) != sym) continue;
     if (valp) *valp = iv_it_val(it);
@@ -271,7 +282,7 @@ static mrb_bool
 iv_del(iv_tbl *t, mrb_sym sym, mrb_value *valp)
 {
   if (!t) return FALSE;
-  iv_each_by_sym(t, sym, it, {
+  iv_each_by_hash_code(t, sym_hash_code(sym), it, {
     if (iv_it_empty_p(it)) return FALSE;
     if (iv_it_sym(it) != sym) continue;
     if (valp) *valp = iv_it_val(it);
@@ -287,8 +298,11 @@ static void
 iv_foreach(mrb_state *mrb, iv_tbl *t, mrb_iv_foreach_func *func, void *data)
 {
   if (!t) return;
-  iv_each_active(t, it, {
+  uint16_t size = iv_size(t);
+  iv_cycle(t, it, {
+    if (!iv_it_active_p(it)) continue;
     if (func(mrb, iv_it_sym(it), iv_it_val(it), data) != 0) return;
+    if (!--size) return;
   });
 }
 
