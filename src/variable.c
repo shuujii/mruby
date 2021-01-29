@@ -300,9 +300,9 @@ iv_foreach(mrb_state *mrb, iv_tbl *t, mrb_iv_foreach_func *func, void *data)
   if (!t) return;
   uint16_t size = iv_size(t);
   iv_cycle(t, it, {
+    if (!size--) return;
     if (!iv_it_active_p(it)) continue;
     if (func(mrb, iv_it_sym(it), iv_it_val(it), data) != 0) return;
-    if (!--size) return;
   });
 }
 
