@@ -810,8 +810,21 @@ assert('get constant of parent module in singleton class; issue #3568') do
 end
 
 assert('shared empty iv_tbl') do
-  m = Module.new
-  c = Class.new{include m}
-  m::CONST = 1
-  assert_equal 1, c::CONST
+  m11 = Module.new
+  m12 = Module.new{include m11}
+  c11 = Class.new{include m12}
+  m11::CONST11 = 11
+  assert_equal 11, m12::CONST11
+  assert_equal 11, c11::CONST11
+  m12::CONST12 = 12
+  assert_equal 12, c11::CONST12
+
+  m21 = Module.new
+  m22 = Module.new{prepend m21}
+  c21 = Class.new{include m22}
+  m21::CONST21 = 21
+  assert_equal 21, m22::CONST21
+  assert_equal 21, c21::CONST21
+  m22::CONST22 = 22
+  assert_equal 22, c21::CONST22
 end
