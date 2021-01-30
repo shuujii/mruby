@@ -201,9 +201,13 @@ assert('Module#class_variable_get', '15.2.2.4.17') do
 
   # shared empty iv_tbl
   m = Module.new
-  c = Class.new{include m}
+  class Test4ClassVariableGet end
+  Test4ClassVariableGet.include m
   m.class_variable_set(:@@cv2, 2)
-  assert_equal 2, c.class_variable_get(:@@cv2)
+  assert_equal 2, Test4ClassVariableGet.class_variable_get(:@@cv2)
+  class Test4ClassVariableGet
+    assert_equal 2, @@cv2
+  end
 end
 
 assert('Module#class_variable_set', '15.2.2.4.18') do

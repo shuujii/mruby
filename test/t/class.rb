@@ -459,16 +459,6 @@ assert('class variable for frozen class/module') do
   assert_raise(FrozenError) { b.a = 1 }
 end
 
-assert('shared empty iv_tbl') do
-  m = Module.new
-  class TestSharedCVarTableClass end
-  TestSharedCVarTableClass.include m
-  m.class_variable_set(:@@cv, 1)
-  class TestSharedCVarTableClass
-    assert_equal(1, @@cv)
-  end
-end
-
 assert('class with non-class/module outer raises TypeError') do
   assert_raise(TypeError) { class 0::C1; end }
   assert_raise(TypeError) { class []::C2; end }
