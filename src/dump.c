@@ -750,7 +750,7 @@ write_rite_binary_header(mrb_state *mrb, size_t binary_size, uint8_t *bin, uint8
 
   memcpy(header->binary_ident, RITE_BINARY_IDENT, sizeof(header->binary_ident));
   memcpy(header->major_version, RITE_BINARY_MAJOR_VER, sizeof(header->major_version));
-  memcpy(header->minor_version, RITE_BINARY_MAJOR_VER, sizeof(header->minor_version));
+  memcpy(header->minor_version, RITE_BINARY_MINOR_VER, sizeof(header->minor_version));
   memcpy(header->compiler_name, RITE_COMPILER_NAME, sizeof(header->compiler_name));
   memcpy(header->compiler_version, RITE_COMPILER_VERSION, sizeof(header->compiler_version));
   mrb_assert(binary_size <= UINT32_MAX);
@@ -1036,14 +1036,16 @@ sym_name_cvar_p(const char *name, mrb_int len)
 static const char*
 sym_operator_name(const char *sym_name, mrb_int len)
 {
-  mrb_sym start, idx;
   mrb_sym table_size = sizeof(operator_table)/sizeof(struct operator_symbol);
+  if (operator_table[table_size-1].sym_name_len < len) return NULL;
+
+  mrb_sym start, idx;
   int cmp;
   const struct operator_symbol *op_sym;
   for (start = 0; table_size != 0; table_size/=2) {
     idx = start+table_size/2;
     op_sym = &operator_table[idx];
-    cmp = (int)(len-op_sym->sym_name_len);
+    cmp = (int)len-(int)op_sym->sym_name_len;
     if (cmp == 0) {
       cmp = memcmp(sym_name, op_sym->sym_name, len);
       if (cmp == 0) return op_sym->name;
@@ -1216,7 +1218,10 @@ mrb_dump_irep_cstruct(mrb_state *mrb, const mrb_irep *irep, uint8_t flags, FILE 
   if (fp == NULL || initname == NULL || initname[0] == '\0') {
     return MRB_DUMP_INVALID_ARGUMENT;
   }
-  if (fprintf(fp, "#include <mruby.h>\n" "#include <mruby/proc.h>\n\n") < 0) {
+  if (fprintf(fp, "#include <mruby.h>\n"
+                  "#include <mruby/proc.h>\n"
+                  "#include <mruby/presym.h>\n"
+                  "\n") < 0) {
     return MRB_DUMP_WRITE_FAULT;
   }
   fputs("#define mrb_BRACED(...) {__VA_ARGS__}\n", fp);

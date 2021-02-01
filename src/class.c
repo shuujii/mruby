@@ -17,6 +17,7 @@
 #include <mruby/data.h>
 #include <mruby/istruct.h>
 #include <mruby/opcode.h>
+#include <mruby/presym.h>
 
 union mt_ptr {
   struct RProc *proc;
@@ -1496,7 +1497,8 @@ mrb_prepend_module(mrb_state *mrb, struct RClass *c, struct RClass *m)
     origin->super = c->super;
     c->super = origin;
     origin->mt = c->mt;
-    c->mt = mt_new(mrb);
+    c->mt = NULL;
+    origin->iv = c->iv;
     mrb_field_write_barrier(mrb, (struct RBasic*)c, (struct RBasic*)origin);
     c->flags |= MRB_FL_CLASS_IS_PREPENDED;
   }
@@ -2816,7 +2818,7 @@ init_class_new(mrb_state *mrb, struct RClass *cls)
   struct RProc *p;
   mrb_method_t m;
 
-  init_new_syms(mrb);
+  MRB_PRESYM_INIT_SYMBOLS(mrb, new_syms);
   p = mrb_proc_new(mrb, &new_irep);
   MRB_METHOD_FROM_PROC(m, p);
   mrb_define_method_raw(mrb, cls, MRB_SYM(new), m);

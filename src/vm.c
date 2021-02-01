@@ -24,6 +24,7 @@
 #include "value_array.h"
 #include <mruby/throw.h>
 #include <mruby/dump.h>
+#include <mruby/presym.h>
 
 #ifdef MRB_NO_STDIO
 #if defined(__cplusplus)
@@ -38,14 +39,6 @@ void abort(void);
 #define STACK_INIT_SIZE 128
 #define CALLINFO_INIT_SIZE 32
 
-#ifndef ENSURE_STACK_INIT_SIZE
-#define ENSURE_STACK_INIT_SIZE 16
-#endif
-
-#ifndef RESCUE_STACK_INIT_SIZE
-#define RESCUE_STACK_INIT_SIZE 16
-#endif
-
 /* Define amount of linear stack growth. */
 #ifndef MRB_STACK_GROWTH
 #define MRB_STACK_GROWTH 128
@@ -54,11 +47,6 @@ void abort(void);
 /* Maximum mrb_funcall() depth. Should be set lower on memory constrained systems. */
 #ifndef MRB_FUNCALL_DEPTH_MAX
 #define MRB_FUNCALL_DEPTH_MAX 512
-#endif
-
-/* Maximum depth of ecall() recursion. */
-#ifndef MRB_ECALL_DEPTH_MAX
-#define MRB_ECALL_DEPTH_MAX 512
 #endif
 
 /* Maximum stack depth. Should be set lower on memory constrained systems.
@@ -196,7 +184,7 @@ stack_extend_alloc(mrb_state *mrb, mrb_int room)
     size += room;
 #endif
 
-  newstack = (mrb_value *)mrb_realloc(mrb, mrb->c->stbase, sizeof(mrb_value) * size);
+  newstack = (mrb_value *)mrb_realloc_simple(mrb, mrb->c->stbase, sizeof(mrb_value) * size);
   if (newstack == NULL) {
     mrb_exc_raise(mrb, mrb_obj_value(mrb->stack_err));
   }
@@ -791,7 +779,7 @@ catch_handler_find(mrb_state *mrb, mrb_callinfo *ci, const mrb_code *pc, uint32_
   const struct mrb_irep_catch_handler *e;
 
 /* The comparison operators use `>` and `<=` because pc already points to the next instruction */
-#define catch_cover_p(pc, beg, end) ((pc) > (beg) && (pc) <= (end))
+#define catch_cover_p(pc, beg, end) ((pc) > (ptrdiff_t)(beg) && (pc) <= (ptrdiff_t)(end))
 
   if (ci->proc == NULL || MRB_PROC_CFUNC_P(ci->proc)) return NULL;
   irep = ci->proc->body.irep;
@@ -1938,10 +1926,8 @@ RETRY_TRY_BLOCK:
       }
 
       if (mrb->exc) {
-        mrb_callinfo *ci0;
-
       L_RAISE:
-        ci0 = ci = mrb->c->ci;
+        ci = mrb->c->ci;
         if (ci == mrb->c->cibase) {
           ch = catch_handler_find(mrb, ci, pc, MRB_CATCH_FILTER_ALL);
           if (ch == NULL) goto L_FTOP;
@@ -1978,7 +1964,7 @@ RETRY_TRY_BLOCK:
         if (ch == NULL) goto L_STOP;
         if (FALSE) {
         L_CATCH_TAGGED_BREAK: /* from THROW_TAGGED_BREAK() or UNWIND_ENSURE() */
-          ci = ci0 = mrb->c->ci;
+          ci = mrb->c->ci;
         }
         proc = ci->proc;
         irep = proc->body.irep;
@@ -2658,6 +2644,18 @@ RETRY_TRY_BLOCK:
       c = OP_L_METHOD;
       goto L_MAKE_LAMBDA;
     }
+    CASE(OP_LAMBDA16, BS) {
+      c = OP_L_LAMBDA;
+      goto L_MAKE_LAMBDA;
+    }
+    CASE(OP_BLOCK16, BS) {
+      c = OP_L_BLOCK;
+      goto L_MAKE_LAMBDA;
+    }
+    CASE(OP_METHOD16, BS) {
+      c = OP_L_METHOD;
+      goto L_MAKE_LAMBDA;
+    }
 
     CASE(OP_RANGE_INC, B) {
       mrb_value val = mrb_range_new(mrb, regs[a], regs[a+1], FALSE);
@@ -2713,7 +2711,11 @@ RETRY_TRY_BLOCK:
       NEXT;
     }
 
-    CASE(OP_EXEC, BB) {
+    CASE(OP_EXEC16, BS)
+      goto L_EXEC;
+    CASE(OP_EXEC, BB)
+    L_EXEC:
+    {
       mrb_value recv = regs[a];
       struct RProc *p;
       const mrb_irep *nirep = irep->reps[b];

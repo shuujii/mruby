@@ -13,8 +13,8 @@ MRuby.each_target do |build|
   presym = build.presym
 
   include_dir = "#{build.build_dir}/include"
-  build.compilers.each{|c| c.include_paths.unshift include_dir}
-  build.gems.each{|gem| gem.compilers.each{|c| c.include_paths.unshift include_dir}}
+  build.compilers.each{|c| c.include_paths << include_dir}
+  build.gems.each{|gem| gem.compilers.each{|c| c.include_paths << include_dir}}
 
   prereqs = {}
   pps = []
@@ -25,7 +25,7 @@ MRuby.each_target do |build|
     next unless File.extname(prereq) == build.exts.object
     next unless prereq.start_with?(build_dir)
     next if mrbc_build_dir && prereq.start_with?(mrbc_build_dir)
-    pps << prereq.ext(build.exts.preprocessed)
+    pps << prereq.ext(build.exts.presym_preprocessed)
   end
 
   file presym.list_path => pps do
@@ -33,7 +33,11 @@ MRuby.each_target do |build|
     current_presyms = presym.read_list if File.exist?(presym.list_path)
     update = presyms != current_presyms
     presym.write_list(presyms) if update
-    presym.write_header(presyms) if update || !File.exist?(presym.header_path)
+    mkdir_p presym.header_dir
+    %w[id table].each do |type|
+      next if !update && File.exist?(presym.send("#{type}_header_path"))
+      presym.send("write_#{type}_header", presyms)
+    end
   end
 
   gensym_task.enhance([presym.list_path])

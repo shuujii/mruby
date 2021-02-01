@@ -11,32 +11,28 @@
 #include <mruby/string.h>
 #include <mruby/dump.h>
 #include <mruby/class.h>
+#include <mruby/presym.h>
 
 #ifndef MRB_NO_PRESYM
 
-# undef MRB_PRESYM_MAX
-# define MRB_PRESYM_NAMED(lit, num, type, name) {lit, sizeof(lit)-1},
-# define MRB_PRESYM_UNNAMED(lit, num) {lit, sizeof(lit)-1},
-
-static const struct {
-  const char *name;
-  uint16_t len;
-} presym_table[] = {
 #ifndef MRB_PRESYM_SCANNING
-# include <mruby/presym.inc>
+/* const uint16_t presym_length_table[]   */
+/* const char * const presym_name_table[] */
+# include <mruby/presym/table.h>
 #endif
-};
 
 static mrb_sym
 presym_find(const char *name, size_t len)
 {
+  if (presym_length_table[MRB_PRESYM_MAX-1] < len) return 0;
+
   mrb_sym start, idx, presym_size = MRB_PRESYM_MAX;
   int cmp;
   for (start = 0; presym_size != 0; presym_size/=2) {
     idx = start+presym_size/2;
-    cmp = len-presym_table[idx].len;
+    cmp = (int)len-(int)presym_length_table[idx];
     if (cmp == 0) {
-      cmp = memcmp(name, presym_table[idx].name, len);
+      cmp = memcmp(name, presym_name_table[idx], len);
       if (cmp == 0) return idx+1;
     }
     if (0 < cmp) {
@@ -51,8 +47,8 @@ static const char*
 presym_sym2name(mrb_sym sym, mrb_int *lenp)
 {
   if (sym > MRB_PRESYM_MAX) return NULL;
-  if (lenp) *lenp = presym_table[sym-1].len;
-  return presym_table[sym-1].name;
+  if (lenp) *lenp = presym_length_table[sym-1];
+  return presym_name_table[sym-1];
 }
 
 #endif  /* MRB_NO_PRESYM */
@@ -307,6 +303,7 @@ mrb_check_intern_str(mrb_state *mrb, mrb_value str)
 static const char*
 sym2name_len(mrb_state *mrb, mrb_sym sym, char *buf, mrb_int *lenp)
 {
+  if (sym == 0) goto outofsym;
   if (SYMBOL_INLINE_P(sym)) return sym_inline_unpack(sym, buf, lenp);
 
 #ifndef MRB_NO_PRESYM
@@ -317,7 +314,8 @@ sym2name_len(mrb_state *mrb, mrb_sym sym, char *buf, mrb_int *lenp)
 #endif
   sym -= MRB_PRESYM_MAX;
 
-  if (sym == 0 || mrb->symidx < sym) {
+  if (mrb->symidx < sym) {
+  outofsym:
     if (lenp) *lenp = 0;
     return NULL;
   }
