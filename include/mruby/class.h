@@ -18,7 +18,7 @@ struct RClass {
   MRB_OBJECT_HEADER;
   union {
     struct iv_tbl *iv;
-    struct RClass *iv_m;
+    struct RClass *iv_c;
   };
   struct mt_tbl *mt;
   struct RClass *super;

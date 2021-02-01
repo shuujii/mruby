@@ -393,9 +393,7 @@ obj_iv_p(mrb_value obj)
 static iv_tbl*
 class_iv(struct RClass *c)
 {
-  return c->tt == MRB_TT_ICLASS && !(c->flags & MRB_FL_CLASS_IS_ORIGIN) ?
-    c->iv_m->iv : c->iv;
-//    c->c->iv : c->iv;
+  return c->tt == MRB_TT_ICLASS ? c->iv_c->iv : c->iv;
 }
 
 MRB_API mrb_value
