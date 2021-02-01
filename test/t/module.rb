@@ -232,9 +232,15 @@ assert('Module#const_defined?', '15.2.2.4.20') do
   assert_false Test4ConstDefined.const_defined?(:NotExisting)
   assert_wrong_const_name{ Test4ConstDefined.const_defined?(:wrong_name) }
 
-  # shared empty iv_tbl
+  # shared empty iv_tbl (include)
   m = Module.new
   c = Class.new{include m}
+  m::CONST = 1
+  assert_true c.const_defined?(:CONST)
+
+  # shared empty iv_tbl (prepend)
+  m = Module.new
+  c = Class.new{prepend m}
   m::CONST = 1
   assert_true c.const_defined?(:CONST)
 end
@@ -253,9 +259,15 @@ assert('Module#const_get', '15.2.2.4.21') do
   assert_uninitialized_const{ Test4ConstGet.const_get("I_DO_NOT_EXIST::ME_NEITHER") }
   assert_wrong_const_name{ Test4ConstGet.const_get(:wrong_name) }
 
-  # shared empty iv_tbl
+  # shared empty iv_tbl (include)
   m = Module.new
   c = Class.new{include m}
+  m::CONST = 1
+  assert_equal 1, c.const_get(:CONST)
+
+  # shared empty iv_tbl (prepend)
+  m = Module.new
+  c = Class.new{prepend m}
   m::CONST = 1
   assert_equal 1, c.const_get(:CONST)
 end
@@ -809,22 +821,24 @@ assert('get constant of parent module in singleton class; issue #3568') do
   assert_equal("value", actual)
 end
 
-assert('shared empty iv_tbl') do
-  m11 = Module.new
-  m12 = Module.new{include m11}
-  c11 = Class.new{include m12}
-  m11::CONST11 = 11
-  assert_equal 11, m12::CONST11
-  assert_equal 11, c11::CONST11
-  m12::CONST12 = 12
-  assert_equal 12, c11::CONST12
+assert('shared empty iv_tbl (include)') do
+  m1 = Module.new
+  m2 = Module.new{include m1}
+  c = Class.new{include m2}
+  m1::CONST1 = 1
+  assert_equal 1, m2::CONST1
+  assert_equal 1, c::CONST1
+  m2::CONST2 = 2
+  assert_equal 2, c::CONST2
+end
 
-  m21 = Module.new
-  m22 = Module.new{prepend m21}
-  c21 = Class.new{include m22}
-  m21::CONST21 = 21
-  assert_equal 21, m22::CONST21
-  assert_equal 21, c21::CONST21
-  m22::CONST22 = 22
-  assert_equal 22, c21::CONST22
+assert('shared empty iv_tbl (prepend)') do
+  m1 = Module.new
+  m2 = Module.new{prepend m1}
+  c = Class.new{include m2}
+  m1::CONST1 = 1
+  assert_equal 1, m2::CONST1
+  assert_equal 1, c::CONST1
+  m2::CONST2 = 2
+  assert_equal 2, c::CONST2
 end
